@@ -1,0 +1,620 @@
+// GameRenderer.cpp
+#include "GameRenderer.h"
+#include <iostream>
+#include <raymath.h>
+#include <cmath>
+
+GameRenderer::GameRenderer(int mazeWidth, int mazeHeight)
+    : m_maze(mazeWidth, mazeHeight) {
+    
+    m_maze.Generate();
+    m_currentRoom = m_maze.GetStartRoom();
+    m_currentRoom->explored = true;
+    
+    InitWindow(1280, 720, "Maze Explorer");
+    SetTargetFPS(60);
+    
+    Vector3 roomCenter = m_currentRoom->worldPosition;
+    m_camera.position = {roomCenter.x, CAMERA_HEIGHT, roomCenter.z};
+    m_camera.target = {roomCenter.x, CAMERA_HEIGHT, roomCenter.z + 5.0f};
+    m_camera.up = {0.0f, 1.0f, 0.0f};
+    m_camera.fovy = 90.0f;
+    m_camera.projection = CAMERA_PERSPECTIVE;
+    
+    m_cameraAngle = 0.0f;
+    m_cameraPitch = 0.0f;
+    
+    std::cout << "\n=== MAZE DEBUG INFO ===\n";
+    for (int y = 0; y < m_maze.GetHeight(); ++y) {
+        for (int x = 0; x < m_maze.GetWidth(); ++x) {
+            Room* r = m_maze.GetRoom(x, y);
+            std::cout << "Room (" << x << "," << y << "): ";
+            std::cout << "N:" << r->hasDoor[0] << " ";
+            std::cout << "S:" << r->hasDoor[1] << " ";
+            std::cout << "E:" << r->hasDoor[2] << " ";
+            std::cout << "W:" << r->hasDoor[3] << "\n";
+        }
+    }
+    std::cout << "========================\n";
+    
+    std::cout << "Game initialized!\n";
+    std::cout << "Controls:\n";
+    std::cout << "  - Mouse to look around\n";
+    std::cout << "  - Click or SPACE to open doors\n";
+    std::cout << "  - ESC to unlock/lock cursor\n";
+    std::cout << "  - M to toggle minimap\n";
+    std::cout << "  - F1 to toggle debug info\n";
+}
+
+GameRenderer::~GameRenderer() {
+    CloseWindow();
+}
+
+void GameRenderer::Run() {
+    while (!WindowShouldClose()) {
+        HandleInput();
+        Update();
+        Draw();
+    }
+}
+
+void GameRenderer::HandleInput() {
+    if (IsKeyPressed(KEY_M)) {
+        m_showMinimap = !m_showMinimap;
+        std::cout << "Minimap: " << (m_showMinimap ? "ON" : "OFF") << std::endl;
+    }
+    
+    if (IsKeyPressed(KEY_F1)) {
+        m_showDebug = !m_showDebug;
+        std::cout << "Debug info: " << (m_showDebug ? "ON" : "OFF") << std::endl;
+    }
+    
+    if (IsKeyPressed(KEY_P)) {
+        m_maze.PrintGraph();
+    }
+    
+    // Управление камерой всегда активно
+    Vector2 mouseDelta = GetMouseDelta();
+    m_cameraAngle -= mouseDelta.x * 0.003f;
+    m_cameraPitch -= mouseDelta.y * 0.003f;
+    
+    while (m_cameraAngle < 0) m_cameraAngle += 2 * PI;
+    while (m_cameraAngle >= 2 * PI) m_cameraAngle -= 2 * PI;
+    
+    if (m_cameraPitch > 0.8f) m_cameraPitch = 0.8f;
+    if (m_cameraPitch < -0.5f) m_cameraPitch = -0.5f;
+    
+    Vector3 roomCenter = m_currentRoom->worldPosition;
+    
+    Vector3 forward = {
+        sinf(m_cameraAngle) * cosf(m_cameraPitch),
+        sinf(m_cameraPitch),
+        cosf(m_cameraAngle) * cosf(m_cameraPitch)
+    };
+    
+    m_camera.target = Vector3Add(m_camera.position, forward);
+    
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_SPACE)) {
+        Ray ray = GetMouseRay({GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, m_camera);
+        Direction clickedDoor = GetDoorFromRay(ray, m_currentRoom);
+        
+        // ← ВАЖНО: проверяем, что направление не NONE
+        if (clickedDoor != Direction::NONE) {
+            int dirIndex = static_cast<int>(clickedDoor);
+            
+            if (CanMoveToRoom(m_currentRoom, clickedDoor)) {
+                std::cout << "Opening door: ";
+                switch(clickedDoor) {
+                    case Direction::NORTH: std::cout << "NORTH"; break;
+                    case Direction::WEST:  std::cout << "WEST"; break;
+                    case Direction::SOUTH: std::cout << "SOUTH"; break;
+                    case Direction::EAST:  std::cout << "EAST"; break;
+                    default: break;
+                }
+                std::cout << "\n";
+                
+                MoveToRoom(m_currentRoom->neighbors[dirIndex]);
+            }
+        }
+    }
+}
+
+void GameRenderer::Update() {
+    Vector3 roomCenter = m_currentRoom->worldPosition;
+    m_camera.position = {roomCenter.x, CAMERA_HEIGHT, roomCenter.z};
+}
+
+void GameRenderer::Draw() {
+    BeginDrawing();
+    ClearBackground(BLACK);
+    
+    BeginMode3D(m_camera);
+    
+    DrawRoom(m_currentRoom);
+    DrawDoors3D(m_currentRoom);
+    
+    EndMode3D();
+    
+    DrawCrosshair();
+    
+    if (m_showMinimap) {
+        DrawMinimap();
+    }
+    
+    DrawDoorIndicators();
+    DrawDebugInfo();
+
+    DisableCursor();
+    
+    DrawFPS(10, 10);
+    DrawText(TextFormat("Room: (%d, %d)", m_currentRoom->gridX, m_currentRoom->gridY), 
+             10, 30, 20, LIGHTGRAY);
+    
+    if (m_currentRoom == m_maze.GetExitRoom()) {
+        DrawText("EXIT REACHED! Congratulations!", 
+                 GetScreenWidth()/2 - 150, GetScreenHeight()/2, 30, GREEN);
+    }
+    
+    EndDrawing();
+}
+
+void GameRenderer::DrawRoom(Room* room) {
+    Vector3 pos = room->worldPosition;
+    float half = ROOM_SIZE / 2.0f;
+    
+    // Пол
+    DrawPlane({pos.x, 0.0f, pos.z}, {ROOM_SIZE, ROOM_SIZE}, GRAY);
+    
+    // Потолок
+    DrawPlane({pos.x, WALL_HEIGHT, pos.z}, {ROOM_SIZE, ROOM_SIZE}, DARKGRAY);
+    
+    Color wallColor = (Color){80, 80, 100, 255};
+    
+    // Северная стена (+Z)
+    if (!room->hasDoor[0]) {
+        DrawCube({pos.x, WALL_HEIGHT/2, pos.z + half}, 
+                 ROOM_SIZE, WALL_HEIGHT, WALL_THICKNESS, wallColor);
+    } else {
+        DrawCube({pos.x - ROOM_SIZE/4 - DOOR_WIDTH/4, WALL_HEIGHT/2, pos.z + half}, 
+                 ROOM_SIZE/2 - DOOR_WIDTH/2, WALL_HEIGHT, WALL_THICKNESS, wallColor);
+        DrawCube({pos.x + ROOM_SIZE/4 + DOOR_WIDTH/4, WALL_HEIGHT/2, pos.z + half}, 
+                 ROOM_SIZE/2 - DOOR_WIDTH/2, WALL_HEIGHT, WALL_THICKNESS, wallColor);
+        DrawCube({pos.x, WALL_HEIGHT - 0.25f, pos.z + half}, 
+                 DOOR_WIDTH, 0.5f, WALL_THICKNESS, wallColor);
+    }
+    
+    // Южная стена (-Z)
+    if (!room->hasDoor[1]) {
+        DrawCube({pos.x, WALL_HEIGHT/2, pos.z - half}, 
+                 ROOM_SIZE, WALL_HEIGHT, WALL_THICKNESS, wallColor);
+    } else {
+        DrawCube({pos.x - ROOM_SIZE/4 - DOOR_WIDTH/4, WALL_HEIGHT/2, pos.z - half}, 
+                 ROOM_SIZE/2 - DOOR_WIDTH/2, WALL_HEIGHT, WALL_THICKNESS, wallColor);
+        DrawCube({pos.x + ROOM_SIZE/4 + DOOR_WIDTH/4, WALL_HEIGHT/2, pos.z - half}, 
+                 ROOM_SIZE/2 - DOOR_WIDTH/2, WALL_HEIGHT, WALL_THICKNESS, wallColor);
+        DrawCube({pos.x, WALL_HEIGHT - 0.25f, pos.z - half}, 
+                 DOOR_WIDTH, 0.5f, WALL_THICKNESS, wallColor);
+    }
+    
+    // Восточная стена (+X)
+    if (!room->hasDoor[3]) {
+        DrawCube({pos.x + half, WALL_HEIGHT/2, pos.z}, 
+                 WALL_THICKNESS, WALL_HEIGHT, ROOM_SIZE, wallColor);
+    } else {
+        DrawCube({pos.x + half, WALL_HEIGHT/2, pos.z - ROOM_SIZE/4 - DOOR_WIDTH/4}, 
+                 WALL_THICKNESS, WALL_HEIGHT, ROOM_SIZE/2 - DOOR_WIDTH/2, wallColor);
+        DrawCube({pos.x + half, WALL_HEIGHT/2, pos.z + ROOM_SIZE/4 + DOOR_WIDTH/4}, 
+                 WALL_THICKNESS, WALL_HEIGHT, ROOM_SIZE/2 - DOOR_WIDTH/2, wallColor);
+        DrawCube({pos.x + half, WALL_HEIGHT - 0.25f, pos.z}, 
+                 WALL_THICKNESS, 0.5f, DOOR_WIDTH, wallColor);
+    }
+    
+    // Западная стена (-X)
+    if (!room->hasDoor[2]) {
+        DrawCube({pos.x - half, WALL_HEIGHT/2, pos.z}, 
+                 WALL_THICKNESS, WALL_HEIGHT, ROOM_SIZE, wallColor);
+    } else {
+        DrawCube({pos.x - half, WALL_HEIGHT/2, pos.z - ROOM_SIZE/4 - DOOR_WIDTH/4}, 
+                 WALL_THICKNESS, WALL_HEIGHT, ROOM_SIZE/2 - DOOR_WIDTH/2, wallColor);
+        DrawCube({pos.x - half, WALL_HEIGHT/2, pos.z + ROOM_SIZE/4 + DOOR_WIDTH/4}, 
+                 WALL_THICKNESS, WALL_HEIGHT, ROOM_SIZE/2 - DOOR_WIDTH/2, wallColor);
+        DrawCube({pos.x - half, WALL_HEIGHT - 0.25f, pos.z}, 
+                 WALL_THICKNESS, 0.5f, DOOR_WIDTH, wallColor);
+    }
+    
+    // Маркеры старта и финиша
+    if (room == m_maze.GetStartRoom()) {
+        DrawSphere({pos.x, 0.5f, pos.z}, 0.5f, GREEN);
+    }
+    if (room == m_maze.GetExitRoom()) {
+        DrawSphere({pos.x, 0.5f, pos.z}, 0.5f, RED);
+    }
+}
+
+void GameRenderer::DrawDoors3D(Room* room) {
+    Vector3 pos = room->worldPosition;
+    float half = ROOM_SIZE / 2.0f;
+    
+    Ray ray = GetMouseRay({GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, m_camera);
+    Direction hoveredDoor = GetDoorFromRay(ray, room);
+    
+    Color doorColor = (Color){139, 69, 19, 255};
+    Color frameColor = (Color){101, 67, 33, 255};
+    Color handleColor = GOLD;
+    float doorThickness = 0.2f;
+    
+    // Северная дверь (+Z)
+    if (room->hasDoor[0]) {
+        Vector3 doorPos = {pos.x, DOOR_HEIGHT/2, pos.z + half};
+        DrawCube(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness, doorColor);
+        DrawCubeWires(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness + 0.01f, frameColor);
+        DrawSphere({doorPos.x - DOOR_WIDTH/3, DOOR_HEIGHT/2, doorPos.z}, 0.12f, handleColor);
+        
+        if (hoveredDoor == Direction::NORTH) {
+            DrawCubeWires(doorPos, DOOR_WIDTH + 0.15f, DOOR_HEIGHT + 0.15f, doorThickness + 0.02f, YELLOW);
+        }
+    }
+    
+    // Южная дверь (-Z)
+    if (room->hasDoor[1]) {
+        Vector3 doorPos = {pos.x, DOOR_HEIGHT/2, pos.z - half};
+        DrawCube(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness, doorColor);
+        DrawCubeWires(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness + 0.01f, frameColor);
+        DrawSphere({doorPos.x + DOOR_WIDTH/3, DOOR_HEIGHT/2, doorPos.z}, 0.12f, handleColor);
+        
+        if (hoveredDoor == Direction::SOUTH) {
+            DrawCubeWires(doorPos, DOOR_WIDTH + 0.15f, DOOR_HEIGHT + 0.15f, doorThickness + 0.02f, YELLOW);
+        }
+    }
+    
+    // Восточная дверь (+X)
+    if (room->hasDoor[3]) {
+        Vector3 doorPos = {pos.x + half, DOOR_HEIGHT/2, pos.z};
+        DrawCube(doorPos, doorThickness, DOOR_HEIGHT, DOOR_WIDTH, doorColor);
+        DrawCubeWires(doorPos, doorThickness + 0.01f, DOOR_HEIGHT, DOOR_WIDTH, frameColor);
+        DrawSphere({doorPos.x, DOOR_HEIGHT/2, doorPos.z - DOOR_WIDTH/3}, 0.12f, handleColor);
+        
+        if (hoveredDoor == Direction::EAST) {
+            DrawCubeWires(doorPos, doorThickness + 0.02f, DOOR_HEIGHT + 0.15f, DOOR_WIDTH + 0.15f, YELLOW);
+        }
+    }
+    
+    // Западная дверь (-X)
+    if (room->hasDoor[2]) {
+        Vector3 doorPos = {pos.x - half, DOOR_HEIGHT/2, pos.z};
+        DrawCube(doorPos, doorThickness, DOOR_HEIGHT, DOOR_WIDTH, doorColor);
+        DrawCubeWires(doorPos, doorThickness + 0.01f, DOOR_HEIGHT, DOOR_WIDTH, frameColor);
+        DrawSphere({doorPos.x, DOOR_HEIGHT/2, doorPos.z + DOOR_WIDTH/3}, 0.12f, handleColor);
+        
+        if (hoveredDoor == Direction::WEST) {
+            DrawCubeWires(doorPos, doorThickness + 0.02f, DOOR_HEIGHT + 0.15f, DOOR_WIDTH + 0.15f, YELLOW);
+        }
+    }
+}
+
+void GameRenderer::DrawMinimap() {
+    int mapSize = 200;
+    int cellSize = mapSize / std::max(m_maze.GetWidth(), m_maze.GetHeight());
+    int mapX = GetScreenWidth() - mapSize - 30;
+    int mapY = 70;
+    
+    // Фон
+    DrawRectangle(mapX - 10, mapY - 30, mapSize + 20, mapSize + 40, Fade(BLACK, 0.8f));
+    DrawText("MINIMAP", mapX + mapSize/2 - 40, mapY - 25, 20, LIGHTGRAY);
+    
+    // Отрисовка комнат
+    for (int y = 0; y < m_maze.GetHeight(); ++y) {
+        for (int x = 0; x < m_maze.GetWidth(); ++x) {
+            Room* room = m_maze.GetRoom(x, y);
+            int drawX = mapX + x * cellSize;
+            int drawY = mapY + y * cellSize;
+            
+            Color color;
+            if (room == m_currentRoom) {
+                color = YELLOW;
+            } else if (room->explored) {
+                if (room == m_maze.GetStartRoom()) color = GREEN;
+                else if (room == m_maze.GetExitRoom()) color = RED;
+                else color = (Color){100, 100, 200, 255};
+            } else {
+                color = DARKGRAY;
+            }
+            
+            DrawRectangle(drawX, drawY, cellSize - 1, cellSize - 1, color);
+            
+            // Двери
+            if (room->explored || room == m_currentRoom) {
+                int cx = drawX + cellSize/2;
+                int cy = drawY + cellSize/2;
+                
+                // NORTH (0) - вверх
+                if (room->hasDoor[0]) DrawLine(cx, drawY, cx, drawY - 3, WHITE);
+                // WEST (3) - влево
+                if (room->hasDoor[3]) DrawLine(drawX, cy, drawX - 3, cy, WHITE);
+                // SOUTH (1) - вниз
+                if (room->hasDoor[1]) DrawLine(cx, drawY + cellSize, cx, drawY + cellSize + 3, WHITE);
+                // EAST (2) - вправо
+                if (room->hasDoor[2]) DrawLine(drawX + cellSize, cy, drawX + cellSize + 3, cy, WHITE);
+            }
+        }
+    }
+    
+    // Направление взгляда
+    if (m_currentRoom) {
+        int roomX = mapX + m_currentRoom->gridX * cellSize + cellSize/2;
+        int roomY = mapY + m_currentRoom->gridY * cellSize + cellSize/2;
+        
+        // Исправленные направления для миникарты
+        // NORTH (0°) = вверх (0, -1)
+        // WEST (90°) = влево (-1, 0)
+        // SOUTH (180°) = вниз (0, 1)
+        // EAST (270°) = вправо (1, 0)
+        float dirX = sinf(m_cameraAngle);      // при 90° (WEST) = 1? Нет, sin(90°)=1
+        float dirY = -cosf(m_cameraAngle);     // при 90° (WEST) = 0
+        
+        // Переопределяем для правильного соответствия:
+        // 0° (NORTH) -> (0, -1)
+        // 90° (WEST) -> (-1, 0)
+        // 180° (SOUTH) -> (0, 1)
+        // 270° (EAST) -> (1, 0)
+        
+        // Используем угол напрямую:
+        float angle = m_cameraAngle;
+        float arrowDirX = sinf(angle);           // 0°=0, 90°=1, 180°=0, 270°=-1
+        float arrowDirY = -cosf(angle);          // 0°=-1, 90°=0, 180°=1, 270°=0
+        
+        // Но нам нужно, чтобы 90° было WEST (влево = -X), а не EAST
+        // Поэтому инвертируем X:
+        arrowDirX = -arrowDirX;
+        
+        int arrowLen = cellSize / 2;
+        int arrowX = roomX + (int)(arrowDirX * arrowLen);
+        int arrowY = roomY + (int)(arrowDirY * arrowLen);
+        
+        DrawCircle(roomX, roomY, cellSize/4, Fade(YELLOW, 0.3f));
+        DrawLine(roomX, roomY, arrowX, arrowY, YELLOW);
+        DrawCircle(arrowX, arrowY, 3, YELLOW);
+        
+        Vector2 tip = {(float)arrowX, (float)arrowY};
+        Vector2 left = {tip.x - arrowDirY * 4, tip.y + arrowDirX * 4};
+        Vector2 right = {tip.x + arrowDirY * 4, tip.y - arrowDirX * 4};
+        DrawTriangle(tip, left, right, Fade(YELLOW, 0.7f));
+    }
+}
+
+void GameRenderer::DrawDoorIndicators() {
+    Ray ray = GetMouseRay({GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, m_camera);
+    Direction hoveredDoor = GetDoorFromRay(ray, m_currentRoom);
+    
+    if (hoveredDoor == Direction::NONE) return;
+    
+    int dirIndex = static_cast<int>(hoveredDoor);
+    bool isValidDoor = m_currentRoom->hasDoor[dirIndex] && 
+                       m_currentRoom->neighbors[dirIndex] != nullptr;
+    
+    if (isValidDoor) {
+        int centerX = GetScreenWidth() / 2;
+        int centerY = GetScreenHeight() / 2;
+        
+        const char* doorName = "";
+        switch(hoveredDoor) {
+            case Direction::NORTH: doorName = "NORTH"; break;
+            case Direction::WEST:  doorName = "WEST"; break;
+            case Direction::SOUTH: doorName = "SOUTH"; break;
+            case Direction::EAST:  doorName = "EAST"; break;
+            default: break;
+        }
+        
+        const char* text = TextFormat("Click or SPACE to enter %s door", doorName);
+        int textWidth = MeasureText(text, 18);
+        
+        DrawRectangle(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(BLACK, 0.8f));
+        DrawRectangleLines(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(WHITE, 0.5f));
+        DrawText(text, centerX - textWidth/2, centerY + 35, 18, WHITE);
+        
+        DrawCircleLines(centerX, centerY, 10, Fade(GREEN, 0.8f));
+        DrawCircle(centerX, centerY, 3, GREEN);
+    }
+}
+
+void GameRenderer::DrawCrosshair() {
+    int cx = GetScreenWidth() / 2;
+    int cy = GetScreenHeight() / 2;
+    DrawCircle(cx, cy, 5, Fade(WHITE, 0.5f));
+    DrawCircle(cx, cy, 2, WHITE);
+}
+
+void GameRenderer::DrawDebugInfo() {
+    if (!m_showDebug) return;
+    
+    int y = 60;
+    DrawText("DEBUG INFO (F1 to hide):", 10, y, 20, YELLOW); y += 25;
+    
+    float angleDeg = m_cameraAngle * RAD2DEG;
+    DrawText(TextFormat("Camera Angle: %.1f°", angleDeg), 10, y, 16, WHITE); y += 20;
+    
+    Direction lookingDir = GetDirectionFromAngle(m_cameraAngle);
+    const char* dirText = "";
+    switch(lookingDir) {
+        case Direction::NORTH: dirText = "NORTH (0°)"; break;
+        case Direction::WEST:  dirText = "WEST (90°)"; break;
+        case Direction::SOUTH: dirText = "SOUTH (180°)"; break;
+        case Direction::EAST:  dirText = "EAST (270°)"; break;
+        default: dirText = "UNKNOWN"; break;
+    }
+    DrawText(TextFormat("Looking: %s", dirText), 10, y, 16, WHITE); y += 20;
+    
+    Ray ray = GetMouseRay({GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, m_camera);
+    Direction hoveredDoor = GetDoorFromRay(ray, m_currentRoom);
+    const char* hoverText = "";
+    switch(hoveredDoor) {
+        case Direction::NORTH: hoverText = "NORTH"; break;
+        case Direction::WEST:  hoverText = "WEST"; break;
+        case Direction::SOUTH: hoverText = "SOUTH"; break;
+        case Direction::EAST:  hoverText = "EAST"; break;
+        case Direction::NONE:  hoverText = "NONE"; break;
+        default: hoverText = "???"; break;
+    }
+    DrawText(TextFormat("Hovered door: %s", hoverText), 10, y, 16, WHITE); y += 20;
+    
+    DrawText(TextFormat("Available doors: N:%d W:%d S:%d E:%d",
+             m_currentRoom->hasDoor[0], m_currentRoom->hasDoor[3],
+             m_currentRoom->hasDoor[1], m_currentRoom->hasDoor[2]), 
+             10, y, 16, WHITE);
+}
+
+Direction GameRenderer::GetDoorFromRay(Ray ray, Room* room) {
+    Vector3 pos = room->worldPosition;
+    float half = ROOM_SIZE / 2.0f;
+    
+    BoundingBox doors[4];
+    bool hasValidDoor[4] = {false};
+    
+    // NORTH (0) = +Z
+    if (room->hasDoor[0]) {
+        doors[0] = {{pos.x - DOOR_WIDTH/2, 0.1f, pos.z + half - 0.3f},
+                    {pos.x + DOOR_WIDTH/2, DOOR_HEIGHT, pos.z + half + 0.3f}};
+        hasValidDoor[0] = true;
+    }
+    
+    // SOUTH (1) = -Z
+    if (room->hasDoor[1]) {
+        doors[1] = {{pos.x - DOOR_WIDTH/2, 0.1f, pos.z - half - 0.3f},
+                    {pos.x + DOOR_WIDTH/2, DOOR_HEIGHT, pos.z - half + 0.3f}};
+        hasValidDoor[1] = true;
+    }
+    
+if (room->hasDoor[2]) {  // EAST - инвертируем X
+    doors[2] = {{pos.x - half - 0.3f, 0.1f, pos.z - DOOR_WIDTH/2},  // ← -half вместо +half
+                {pos.x - half + 0.3f, DOOR_HEIGHT, pos.z + DOOR_WIDTH/2}};
+    hasValidDoor[2] = true;
+}
+
+if (room->hasDoor[3]) {  // WEST - инвертируем X
+    doors[3] = {{pos.x + half - 0.3f, 0.1f, pos.z - DOOR_WIDTH/2},  // ← +half вместо -half
+                {pos.x + half + 0.3f, DOOR_HEIGHT, pos.z + DOOR_WIDTH/2}};
+    hasValidDoor[3] = true;
+}
+    
+    RayCollision collision;
+    float minDistance = 1000.0f;
+    Direction closestDoor = Direction::NONE;
+    bool foundDoor = false;
+    
+    for (int i = 0; i < 4; i++) {
+        if (hasValidDoor[i]) {
+            collision = GetRayCollisionBox(ray, doors[i]);
+            if (collision.hit && collision.distance < minDistance) {
+                minDistance = collision.distance;
+                closestDoor = static_cast<Direction>(i);
+                foundDoor = true;
+            }
+        }
+    }
+    
+    // Если дверь слишком далеко — тоже считаем что не нашли
+    if (foundDoor && minDistance > ROOM_SIZE * 1.5f) {
+        return Direction::NONE;
+    }
+    
+    return closestDoor;
+}
+
+Direction GameRenderer::GetDirectionFromAngle(float angle) {
+    while (angle < 0) angle += 2 * PI;
+    while (angle >= 2 * PI) angle -= 2 * PI;
+    
+    if (angle >= 7 * PI / 4 || angle < PI / 4) {
+        return Direction::NORTH;  // 0°
+    } else if (angle >= PI / 4 && angle < 3 * PI / 4) {
+        return Direction::WEST;   // 90° → EAST (было WEST)
+    } else if (angle >= 3 * PI / 4 && angle < 5 * PI / 4) {
+        return Direction::SOUTH;  // 180°
+    } else {
+        return Direction::EAST;   // 270° → WEST (было EAST)
+    }
+}
+
+bool GameRenderer::IsLookingAtDoor(Direction dir, float toleranceDegrees) {
+    float expectedAngle = 0.0f;
+    switch(dir) {
+        case Direction::NORTH: expectedAngle = 0.0f; break;           // 0°
+        case Direction::EAST:  expectedAngle = PI / 2; break;         // 90°
+        case Direction::SOUTH: expectedAngle = PI; break;             // 180°
+        case Direction::WEST:  expectedAngle = 3 * PI / 2; break;     // 270°
+        default: return false;
+    }
+    
+    float diff = fabs(m_cameraAngle - expectedAngle);
+    if (diff > PI) diff = 2 * PI - diff;
+    
+    return diff <= toleranceDegrees * DEG2RAD;
+}
+
+bool GameRenderer::CanMoveToRoom(Room* from, Direction dir) {
+    if (!from) return false;
+    if (dir == Direction::NONE) return false;  // ← Добавлено
+    
+    int dirIndex = static_cast<int>(dir);
+    return from->hasDoor[dirIndex] && from->neighbors[dirIndex] != nullptr;
+}
+
+void GameRenderer::MoveToRoom(Room* newRoom) {
+    if (!newRoom) return;
+    
+    Direction cameFrom = Direction::NORTH;
+    for (int i = 0; i < 4; i++) {
+        if (m_currentRoom->neighbors[i] == newRoom) {
+            cameFrom = static_cast<Direction>(i);
+            break;
+        }
+    }
+    
+    m_currentRoom = newRoom;
+    m_currentRoom->explored = true;
+    
+    Vector3 roomCenter = m_currentRoom->worldPosition;
+    m_camera.position = {roomCenter.x, CAMERA_HEIGHT, roomCenter.z};
+    
+    // ИСПРАВЛЕНО: правильные углы
+    switch(cameFrom) {
+        case Direction::NORTH:
+            m_cameraAngle = 0.0f;           // 0°
+            break;
+        case Direction::EAST:
+            m_cameraAngle = 3* PI / 2;         // 90°
+            break;
+        case Direction::SOUTH:
+            m_cameraAngle = PI;             // 180°
+            break;
+        case Direction::WEST:
+            m_cameraAngle = PI / 2;     // 270°
+            break;
+        default:
+            break;
+    }
+    
+    m_cameraPitch = 0.0f;
+    
+    Vector3 forward = {
+        sinf(m_cameraAngle) * cosf(m_cameraPitch),
+        sinf(m_cameraPitch),
+        cosf(m_cameraAngle) * cosf(m_cameraPitch)
+    };
+    m_camera.target = Vector3Add(m_camera.position, forward);
+    
+    std::cout << "Moved to room (" << newRoom->gridX << ", " << newRoom->gridY << ") ";
+    std::cout << "came from ";
+    switch(cameFrom) {
+        case Direction::NORTH: std::cout << "NORTH"; break;
+        case Direction::EAST:  std::cout << "EAST"; break;
+        case Direction::SOUTH: std::cout << "SOUTH"; break;
+        case Direction::WEST:  std::cout << "WEST"; break;
+        default: break;
+    }
+    std::cout << ", angle: " << (m_cameraAngle * RAD2DEG) << "°\n";
+    
+    if (newRoom == m_maze.GetExitRoom()) {
+        std::cout << "*** Congratulations! You reached the exit! ***\n";
+    }
+}
