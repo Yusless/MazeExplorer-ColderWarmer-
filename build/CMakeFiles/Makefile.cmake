@@ -8,6 +8,9 @@ set(CMAKE_DEPENDS_GENERATOR "MinGW Makefiles")
 set(CMAKE_MAKEFILE_DEPENDS
   "CMakeCache.txt"
   "C:/Users/Admin/Desktop/ColderWarmer/CMakeLists.txt"
+  "CMakeFiles/4.1.0/CMakeCXXCompiler.cmake"
+  "CMakeFiles/4.1.0/CMakeRCCompiler.cmake"
+  "CMakeFiles/4.1.0/CMakeSystem.cmake"
   "C:/msys64/mingw64/share/cmake/Modules/CMakeCXXCompiler.cmake.in"
   "C:/msys64/mingw64/share/cmake/Modules/CMakeCXXCompilerABI.cpp"
   "C:/msys64/mingw64/share/cmake/Modules/CMakeCXXInformation.cmake"
@@ -99,9 +102,6 @@ set(CMAKE_MAKEFILE_DEPENDS
   "C:/msys64/mingw64/share/cmake/Modules/Platform/Windows-windres.cmake"
   "C:/msys64/mingw64/share/cmake/Modules/Platform/Windows.cmake"
   "C:/msys64/mingw64/share/cmake/Modules/Platform/WindowsPaths.cmake"
-  "CMakeFiles/4.1.0/CMakeCXXCompiler.cmake"
-  "CMakeFiles/4.1.0/CMakeRCCompiler.cmake"
-  "CMakeFiles/4.1.0/CMakeSystem.cmake"
   )
 
 # The corresponding makefile is:

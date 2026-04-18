@@ -73,7 +73,6 @@ void GameRenderer::HandleInput() {
         m_maze.PrintGraph();
     }
     
-    // Управление камерой всегда активно
     Vector2 mouseDelta = GetMouseDelta();
     m_cameraAngle -= mouseDelta.x * 0.003f;
     m_cameraPitch -= mouseDelta.y * 0.003f;
@@ -96,24 +95,31 @@ void GameRenderer::HandleInput() {
     
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_SPACE)) {
         Ray ray = GetMouseRay({GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, m_camera);
-        Direction clickedDoor = GetDoorFromRay(ray, m_currentRoom);
         
-        // ← ВАЖНО: проверяем, что направление не NONE
-        if (clickedDoor != Direction::NONE) {
-            int dirIndex = static_cast<int>(clickedDoor);
+        // Сначала проверяем ключ
+        if (IsKeyHitByRay(ray, m_currentRoom)) {
+            PickupKey(m_currentRoom);
+        }
+        // Потом двери
+        else {
+            Direction clickedDoor = GetDoorFromRay(ray, m_currentRoom);
             
-            if (CanMoveToRoom(m_currentRoom, clickedDoor)) {
-                std::cout << "Opening door: ";
-                switch(clickedDoor) {
-                    case Direction::NORTH: std::cout << "NORTH"; break;
-                    case Direction::WEST:  std::cout << "WEST"; break;
-                    case Direction::SOUTH: std::cout << "SOUTH"; break;
-                    case Direction::EAST:  std::cout << "EAST"; break;
-                    default: break;
-                }
-                std::cout << "\n";
+            if (clickedDoor != Direction::NONE) {
+                int dirIndex = static_cast<int>(clickedDoor);
                 
-                MoveToRoom(m_currentRoom->neighbors[dirIndex]);
+                if (TryOpenDoor(m_currentRoom, clickedDoor)) {
+                    std::cout << "Opening door: ";
+                    switch(clickedDoor) {
+                        case Direction::NORTH: std::cout << "NORTH"; break;
+                        case Direction::WEST:  std::cout << "WEST"; break;
+                        case Direction::SOUTH: std::cout << "SOUTH"; break;
+                        case Direction::EAST:  std::cout << "EAST"; break;
+                        default: break;
+                    }
+                    std::cout << "\n";
+                    
+                    MoveToRoom(m_currentRoom->neighbors[dirIndex]);
+                }
             }
         }
     }
@@ -132,23 +138,40 @@ void GameRenderer::Draw() {
     
     DrawRoom(m_currentRoom);
     DrawDoors3D(m_currentRoom);
+    DrawKeyInRoom(m_currentRoom);  // ← Ключ рисуется в 3D режиме
     
     EndMode3D();
     
     DrawCrosshair();
     
     if (m_showMinimap) {
-        DrawMinimap();
+        if (m_showDebug) {
+            DrawDebugMap();  // Полная карта в углу
+        } else {
+            DrawMinimap();   // Обычная миникарта
+        }
     }
     
     DrawDoorIndicators();
     DrawDebugInfo();
-
+    
     DisableCursor();
     
     DrawFPS(10, 10);
     DrawText(TextFormat("Room: (%d, %d)", m_currentRoom->gridX, m_currentRoom->gridY), 
              10, 30, 20, LIGHTGRAY);
+    
+    // Список ключей
+    int keyY = 60;
+    if (m_hasRedKey)   { DrawText("RED KEY",   10, keyY, 16, RED);   keyY += 20; }
+    if (m_hasBlueKey)  { DrawText("BLUE KEY",  10, keyY, 16, BLUE);  keyY += 20; }
+    if (m_hasGreenKey) { DrawText("GREEN KEY", 10, keyY, 16, GREEN); keyY += 20; }
+    if (m_hasGoldKey)  { DrawText("GOLD KEY",  10, keyY, 16, GOLD);  keyY += 20; }
+    
+    if (m_currentRoom->hasKey) {
+        DrawText("Click on key to pick up", 
+                 GetScreenWidth()/2 - 100, GetScreenHeight() - 40, 20, YELLOW);
+    }
     
     if (m_currentRoom == m_maze.GetExitRoom()) {
         DrawText("EXIT REACHED! Congratulations!", 
@@ -238,14 +261,22 @@ void GameRenderer::DrawDoors3D(Room* room) {
     Ray ray = GetMouseRay({GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, m_camera);
     Direction hoveredDoor = GetDoorFromRay(ray, room);
     
-    Color doorColor = (Color){139, 69, 19, 255};
+    float doorThickness = 0.2f;
     Color frameColor = (Color){101, 67, 33, 255};
     Color handleColor = GOLD;
-    float doorThickness = 0.2f;
     
     // Северная дверь (+Z)
     if (room->hasDoor[0]) {
         Vector3 doorPos = {pos.x, DOOR_HEIGHT/2, pos.z + half};
+        
+        // Определяем цвет двери в зависимости от замка
+        Color doorColor;
+        if (room->doorKey[0] != KeyType::NONE) {
+            doorColor = GetKeyColor(room->doorKey[0]);  // Цвет ключа для запертой двери
+        } else {
+            doorColor = (Color){139, 69, 19, 255};      // Обычный коричневый
+        }
+        
         DrawCube(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness, doorColor);
         DrawCubeWires(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness + 0.01f, frameColor);
         DrawSphere({doorPos.x - DOOR_WIDTH/3, DOOR_HEIGHT/2, doorPos.z}, 0.12f, handleColor);
@@ -258,6 +289,14 @@ void GameRenderer::DrawDoors3D(Room* room) {
     // Южная дверь (-Z)
     if (room->hasDoor[1]) {
         Vector3 doorPos = {pos.x, DOOR_HEIGHT/2, pos.z - half};
+        
+        Color doorColor;
+        if (room->doorKey[1] != KeyType::NONE) {
+            doorColor = GetKeyColor(room->doorKey[1]);
+        } else {
+            doorColor = (Color){139, 69, 19, 255};
+        }
+        
         DrawCube(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness, doorColor);
         DrawCubeWires(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness + 0.01f, frameColor);
         DrawSphere({doorPos.x + DOOR_WIDTH/3, DOOR_HEIGHT/2, doorPos.z}, 0.12f, handleColor);
@@ -270,6 +309,14 @@ void GameRenderer::DrawDoors3D(Room* room) {
     // Восточная дверь (+X)
     if (room->hasDoor[3]) {
         Vector3 doorPos = {pos.x + half, DOOR_HEIGHT/2, pos.z};
+        
+        Color doorColor;
+        if (room->doorKey[2] != KeyType::NONE) {
+            doorColor = GetKeyColor(room->doorKey[2]);
+        } else {
+            doorColor = (Color){139, 69, 19, 255};
+        }
+        
         DrawCube(doorPos, doorThickness, DOOR_HEIGHT, DOOR_WIDTH, doorColor);
         DrawCubeWires(doorPos, doorThickness + 0.01f, DOOR_HEIGHT, DOOR_WIDTH, frameColor);
         DrawSphere({doorPos.x, DOOR_HEIGHT/2, doorPos.z - DOOR_WIDTH/3}, 0.12f, handleColor);
@@ -282,6 +329,14 @@ void GameRenderer::DrawDoors3D(Room* room) {
     // Западная дверь (-X)
     if (room->hasDoor[2]) {
         Vector3 doorPos = {pos.x - half, DOOR_HEIGHT/2, pos.z};
+        
+        Color doorColor;
+        if (room->doorKey[3] != KeyType::NONE) {
+            doorColor = GetKeyColor(room->doorKey[3]);
+        } else {
+            doorColor = (Color){139, 69, 19, 255};
+        }
+        
         DrawCube(doorPos, doorThickness, DOOR_HEIGHT, DOOR_WIDTH, doorColor);
         DrawCubeWires(doorPos, doorThickness + 0.01f, DOOR_HEIGHT, DOOR_WIDTH, frameColor);
         DrawSphere({doorPos.x, DOOR_HEIGHT/2, doorPos.z + DOOR_WIDTH/3}, 0.12f, handleColor);
@@ -384,6 +439,26 @@ void GameRenderer::DrawMinimap() {
 
 void GameRenderer::DrawDoorIndicators() {
     Ray ray = GetMouseRay({GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, m_camera);
+    
+    // Сначала ключ
+    if (IsKeyHitByRay(ray, m_currentRoom)) {
+        int centerX = GetScreenWidth() / 2;
+        int centerY = GetScreenHeight() / 2;
+        
+        const char* text = TextFormat("Click to pick up %s key", 
+                                       GetKeyName(m_currentRoom->keyType));
+        int textWidth = MeasureText(text, 18);
+        
+        DrawRectangle(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(BLACK, 0.8f));
+        DrawRectangleLines(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(WHITE, 0.5f));
+        DrawText(text, centerX - textWidth/2, centerY + 35, 18, WHITE);
+        
+        DrawCircleLines(centerX, centerY, 10, Fade(GetKeyColor(m_currentRoom->keyType), 0.8f));
+        DrawCircle(centerX, centerY, 3, GetKeyColor(m_currentRoom->keyType));
+        return;
+    }
+    
+    // Потом двери
     Direction hoveredDoor = GetDoorFromRay(ray, m_currentRoom);
     
     if (hoveredDoor == Direction::NONE) return;
@@ -396,24 +471,23 @@ void GameRenderer::DrawDoorIndicators() {
         int centerX = GetScreenWidth() / 2;
         int centerY = GetScreenHeight() / 2;
         
-        const char* doorName = "";
-        switch(hoveredDoor) {
-            case Direction::NORTH: doorName = "NORTH"; break;
-            case Direction::WEST:  doorName = "WEST"; break;
-            case Direction::SOUTH: doorName = "SOUTH"; break;
-            case Direction::EAST:  doorName = "EAST"; break;
-            default: break;
+        KeyType requiredKey = m_currentRoom->doorKey[dirIndex];
+        const char* text;
+        
+        if (requiredKey != KeyType::NONE) {
+            text = TextFormat("Requires %s key", GetKeyName(requiredKey));
+        } else {
+            text = "Click or SPACE to open door";
         }
         
-        const char* text = TextFormat("Click or SPACE to enter %s door", doorName);
         int textWidth = MeasureText(text, 18);
-        
         DrawRectangle(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(BLACK, 0.8f));
         DrawRectangleLines(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(WHITE, 0.5f));
         DrawText(text, centerX - textWidth/2, centerY + 35, 18, WHITE);
         
-        DrawCircleLines(centerX, centerY, 10, Fade(GREEN, 0.8f));
-        DrawCircle(centerX, centerY, 3, GREEN);
+        Color circleColor = (requiredKey != KeyType::NONE) ? GetKeyColor(requiredKey) : GREEN;
+        DrawCircleLines(centerX, centerY, 10, Fade(circleColor, 0.8f));
+        DrawCircle(centerX, centerY, 3, circleColor);
     }
 }
 
@@ -617,4 +691,213 @@ void GameRenderer::MoveToRoom(Room* newRoom) {
     if (newRoom == m_maze.GetExitRoom()) {
         std::cout << "*** Congratulations! You reached the exit! ***\n";
     }
+}
+
+bool GameRenderer::IsKeyHitByRay(Ray ray, Room* room) {
+    if (!room->hasKey) return false;
+    
+    Vector3 pos = room->worldPosition;
+    Vector3 keyPos = {pos.x + 2.5f, 0.5f, pos.z + 2.5f};
+    
+    // Создаём ограничивающую коробку вокруг ключа
+    BoundingBox keyBox = {
+        {keyPos.x - 0.4f, keyPos.y - 0.4f, keyPos.z - 0.4f},
+        {keyPos.x + 0.4f, keyPos.y + 0.4f, keyPos.z + 0.4f}
+    };
+    
+    RayCollision collision = GetRayCollisionBox(ray, keyBox);
+    return collision.hit;
+}
+
+bool GameRenderer::HasKey(KeyType keyType) {
+    switch(keyType) {
+        case KeyType::KEY_RED:   return m_hasRedKey;
+        case KeyType::KEY_BLUE:  return m_hasBlueKey;
+        case KeyType::KEY_GREEN: return m_hasGreenKey;
+        case KeyType::KEY_GOLD:  return m_hasGoldKey;
+        default:                 return false;
+    }
+}
+
+void GameRenderer::PickupKey(Room* room) {
+    if (!room->hasKey) return;
+    
+    switch(room->keyType) {
+        case KeyType::KEY_RED:   m_hasRedKey = true;   break;
+        case KeyType::KEY_BLUE:  m_hasBlueKey = true;  break;
+        case KeyType::KEY_GREEN: m_hasGreenKey = true; break;
+        case KeyType::KEY_GOLD:  m_hasGoldKey = true;  break;
+        default: return;
+    }
+    
+    std::cout << "Picked up " << GetKeyName(room->keyType) << " key!\n";
+    room->hasKey = false;
+}
+
+bool GameRenderer::TryOpenDoor(Room* room, Direction dir) {
+    int dirIndex = static_cast<int>(dir);
+    
+    if (!room->hasDoor[dirIndex] || room->neighbors[dirIndex] == nullptr) {
+        return false;
+    }
+    
+    KeyType requiredKey = room->doorKey[dirIndex];
+    
+    if (requiredKey != KeyType::NONE) {
+        if (HasKey(requiredKey)) {
+            std::cout << "Used " << GetKeyName(requiredKey) << " key!\n";
+            
+            switch(requiredKey) {
+                case KeyType::KEY_RED:   m_hasRedKey = false;   break;
+                case KeyType::KEY_BLUE:  m_hasBlueKey = false;  break;
+                case KeyType::KEY_GREEN: m_hasGreenKey = false; break;
+                case KeyType::KEY_GOLD:  m_hasGoldKey = false;  break;
+                default: break;
+            }
+            
+            room->doorKey[dirIndex] = KeyType::NONE;
+            Room* neighbor = room->neighbors[dirIndex];
+            for (int i = 0; i < 4; ++i) {
+                if (neighbor->neighbors[i] == room) {
+                    neighbor->doorKey[i] = KeyType::NONE;
+                    break;
+                }
+            }
+            
+            return true;
+        } else {
+            std::cout << "Requires " << GetKeyName(requiredKey) << " key!\n";
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+void GameRenderer::DrawKeyInRoom(Room* room) {
+    if (!room->hasKey) return;
+    
+    Vector3 pos = room->worldPosition;
+    Color keyColor = GetKeyColor(room->keyType);
+    
+    // Та же позиция, где был куб
+    Vector3 keyPos = {pos.x + 2.5f, 0.25f, pos.z + 2.5f};
+    
+    // Стержень ключа (вертикальный цилиндр)
+    DrawCylinderEx({keyPos.x, keyPos.y - 0.15f, keyPos.z}, 
+                   {keyPos.x, keyPos.y + 0.15f, keyPos.z}, 
+                   0.08f, 0.08f, 8, keyColor);
+    
+    // Головка ключа (сфера сверху)
+    DrawSphere({keyPos.x, keyPos.y + 0.25f, keyPos.z}, 0.12f, keyColor);
+    
+    // Колечко ключа (маленький тор)
+    DrawCylinderEx({keyPos.x - 0.08f, keyPos.y + 0.28f, keyPos.z}, 
+                   {keyPos.x + 0.08f, keyPos.y + 0.28f, keyPos.z}, 
+                   0.03f, 0.03f, 6, keyColor);
+    
+    // Подсветка на полу (круг)
+    DrawCylinderEx({keyPos.x, 0.01f, keyPos.z}, 
+                   {keyPos.x, 0.02f, keyPos.z}, 
+                   0.4f, 0.4f, 8, Fade(keyColor, 0.2f));
+}
+
+void GameRenderer::DrawDebugMap() {
+    int mapSize = 250;
+    int cellSize = mapSize / std::max(m_maze.GetWidth(), m_maze.GetHeight());
+    int mapX = GetScreenWidth() - mapSize - 30;
+    int mapY = 70;
+    
+    // Фон
+    DrawRectangle(mapX - 10, mapY - 30, mapSize + 20, mapSize + 40, Fade(BLACK, 0.8f));
+    DrawText("DEBUG MAP", mapX + mapSize/2 - 50, mapY - 25, 16, YELLOW);
+    
+    // Отрисовка всех комнат
+    for (int y = 0; y < m_maze.GetHeight(); ++y) {
+        for (int x = 0; x < m_maze.GetWidth(); ++x) {
+            Room* room = m_maze.GetRoom(x, y);
+            int drawX = mapX + x * cellSize;
+            int drawY = mapY + y * cellSize;
+            
+            // Цвет комнаты
+            Color roomColor;
+            if (room == m_currentRoom) {
+                roomColor = YELLOW;
+            } else if (room == m_maze.GetStartRoom()) {
+                roomColor = GREEN;
+            } else if (room == m_maze.GetExitRoom()) {
+                roomColor = RED;
+            } else if (room->explored) {
+                roomColor = (Color){100, 100, 200, 255};
+            } else {
+                roomColor = DARKGRAY;
+            }
+            
+            DrawRectangle(drawX, drawY, cellSize - 1, cellSize - 1, roomColor);
+            
+            // Ключ в комнате
+            if (room->hasKey) {
+                DrawCircle(drawX + cellSize/2, drawY + cellSize/2, cellSize/4, Fade(GetKeyColor(room->keyType), 0.9f));
+                DrawCircleLines(drawX + cellSize/2, drawY + cellSize/2, cellSize/4, WHITE);
+            }
+            
+            // Двери — заметные квадраты
+            int cx = drawX + cellSize/2;
+            int cy = drawY + cellSize/2;
+            int doorSize = cellSize / 4;
+            
+            // NORTH
+            if (room->hasDoor[0]) {
+                Color doorColor = (room->doorKey[0] != KeyType::NONE) ? GetKeyColor(room->doorKey[0]) : WHITE;
+                DrawRectangle(cx - doorSize/2, drawY - doorSize/2, doorSize, doorSize, doorColor);
+                DrawRectangleLines(cx - doorSize/2, drawY - doorSize/2, doorSize, doorSize, BLACK);
+            }
+            // SOUTH
+            if (room->hasDoor[1]) {
+                Color doorColor = (room->doorKey[1] != KeyType::NONE) ? GetKeyColor(room->doorKey[1]) : WHITE;
+                DrawRectangle(cx - doorSize/2, drawY + cellSize - doorSize/2, doorSize, doorSize, doorColor);
+                DrawRectangleLines(cx - doorSize/2, drawY + cellSize - doorSize/2, doorSize, doorSize, BLACK);
+            }
+            // EAST
+            if (room->hasDoor[2]) {
+                Color doorColor = (room->doorKey[2] != KeyType::NONE) ? GetKeyColor(room->doorKey[2]) : WHITE;
+                DrawRectangle(drawX + cellSize - doorSize/2, cy - doorSize/2, doorSize, doorSize, doorColor);
+                DrawRectangleLines(drawX + cellSize - doorSize/2, cy - doorSize/2, doorSize, doorSize, BLACK);
+            }
+            // WEST
+            if (room->hasDoor[3]) {
+                Color doorColor = (room->doorKey[3] != KeyType::NONE) ? GetKeyColor(room->doorKey[3]) : WHITE;
+                DrawRectangle(drawX - doorSize/2, cy - doorSize/2, doorSize, doorSize, doorColor);
+                DrawRectangleLines(drawX - doorSize/2, cy - doorSize/2, doorSize, doorSize, BLACK);
+            }
+        }
+    }
+    
+    // Направление взгляда (как на обычной миникарте)
+    if (m_currentRoom) {
+        int roomX = mapX + m_currentRoom->gridX * cellSize + cellSize/2;
+        int roomY = mapY + m_currentRoom->gridY * cellSize + cellSize/2;
+        
+        float arrowDirX = -sinf(m_cameraAngle);
+        float arrowDirY = -cosf(m_cameraAngle);
+        
+        int arrowLen = cellSize / 2;
+        int arrowX = roomX + (int)(arrowDirX * arrowLen);
+        int arrowY = roomY + (int)(arrowDirY * arrowLen);
+        
+        DrawCircle(roomX, roomY, cellSize/4, Fade(YELLOW, 0.3f));
+        DrawLine(roomX, roomY, arrowX, arrowY, YELLOW);
+        DrawCircle(arrowX, arrowY, 3, YELLOW);
+        
+        Vector2 tip = {(float)arrowX, (float)arrowY};
+        Vector2 left = {tip.x - arrowDirY * 4, tip.y + arrowDirX * 4};
+        Vector2 right = {tip.x + arrowDirY * 4, tip.y - arrowDirX * 4};
+        DrawTriangle(tip, left, right, Fade(YELLOW, 0.7f));
+    }
+    
+    // Легенда внизу
+    int legendY = mapY + mapSize + 5;
+    DrawText("S-Start E-Exit", mapX, legendY, 12, LIGHTGRAY);
+    DrawText("Colored doors=Locked", mapX, legendY + 15, 12, LIGHTGRAY);
+    DrawText("Circles=Keys", mapX, legendY + 30, 12, LIGHTGRAY);
 }

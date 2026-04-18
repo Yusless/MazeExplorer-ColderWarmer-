@@ -65,6 +65,8 @@ void MazeGraph::Generate() {
     m_startRoom = m_rooms[0][0].get();
     m_exitRoom = m_rooms[m_height-1][m_width-1].get();
     
+    PlaceKeys();
+    
     std::cout << "Maze generated: " << m_width << "x" << m_height << std::endl;
 }
 
@@ -122,4 +124,147 @@ void MazeGraph::PrintGraph() const {
     }
     for (int x = 0; x < m_width; ++x) std::cout << "+---";
     std::cout << "+\n";
+}
+
+void MazeGraph::LockRandomDoors() {
+    struct DoorInfo {
+        Room* room;
+        Direction dir;
+    };
+    std::vector<DoorInfo> allDoors;
+    
+    for (int y = 0; y < m_height; ++y) {
+        for (int x = 0; x < m_width; ++x) {
+            Room* r = m_rooms[y][x].get();
+            for (int i = 0; i < 4; ++i) {
+                if (r->hasDoor[i] && r->neighbors[i] != nullptr) {
+                    if (r == m_startRoom || r->neighbors[i] == m_startRoom) continue;
+                    if (r == m_exitRoom || r->neighbors[i] == m_exitRoom) continue;
+                    allDoors.push_back({r, static_cast<Direction>(i)});
+                }
+            }
+        }
+    }
+    
+    if (allDoors.empty()) return;
+    
+    std::shuffle(allDoors.begin(), allDoors.end(), m_gen);
+    
+    KeyType keyTypes[] = {KeyType::KEY_RED, KeyType::KEY_BLUE, KeyType::KEY_GREEN, KeyType::KEY_GOLD};
+    int numLocks = std::min(3, (int)allDoors.size());
+    
+    for (int i = 0; i < numLocks; ++i) {
+        DoorInfo& door = allDoors[i];
+        KeyType lockType = keyTypes[i % 4];
+        
+        door.room->doorKey[static_cast<int>(door.dir)] = lockType;
+        
+        Direction opposite;
+        switch(door.dir) {
+            case Direction::NORTH: opposite = Direction::SOUTH; break;
+            case Direction::SOUTH: opposite = Direction::NORTH; break;
+            case Direction::EAST:  opposite = Direction::WEST; break;
+            case Direction::WEST:  opposite = Direction::EAST; break;
+            default: continue;
+        }
+        door.room->neighbors[static_cast<int>(door.dir)]->doorKey[static_cast<int>(opposite)] = lockType;
+        
+        std::cout << "Locked door with " << GetKeyName(lockType) << " key\n";
+    }
+}
+
+std::vector<Room*> MazeGraph::FindPathWithoutKey(Room* start, Room* end, KeyType keyToIgnore) {
+    if (!start || !end) return {};
+    
+    std::map<Room*, Room*> cameFrom;
+    std::vector<Room*> queue = {start};
+    std::map<Room*, bool> visited;
+    visited[start] = true;
+    
+    while (!queue.empty()) {
+        Room* current = queue.front();
+        queue.erase(queue.begin());
+        
+        if (current == end) {
+            std::vector<Room*> path;
+            Room* node = end;
+            while (node != start) {
+                path.push_back(node);
+                node = cameFrom[node];
+            }
+            path.push_back(start);
+            std::reverse(path.begin(), path.end());
+            return path;
+        }
+        
+        for (int i = 0; i < 4; ++i) {
+            if (current->hasDoor[i] && current->neighbors[i] != nullptr) {
+                if (current->doorKey[i] == keyToIgnore) continue;
+                
+                Room* next = current->neighbors[i];
+                if (!visited[next]) {
+                    visited[next] = true;
+                    cameFrom[next] = current;
+                    queue.push_back(next);
+                }
+            }
+        }
+    }
+    
+    return {};
+}
+
+void MazeGraph::PlaceKeys() {
+    LockRandomDoors();
+    
+    std::map<KeyType, bool> neededKeys;
+    
+    for (int y = 0; y < m_height; ++y) {
+        for (int x = 0; x < m_width; ++x) {
+            Room* r = m_rooms[y][x].get();
+            for (int i = 0; i < 4; ++i) {
+                if (r->doorKey[i] != KeyType::NONE) {
+                    neededKeys[r->doorKey[i]] = true;
+                }
+            }
+        }
+    }
+    
+    for (auto& [keyType, _] : neededKeys) {
+        bool keyPlaced = false;
+        
+        for (int y = 0; y < m_height && !keyPlaced; ++y) {
+            for (int x = 0; x < m_width && !keyPlaced; ++x) {
+                Room* candidate = m_rooms[y][x].get();
+                
+                if (candidate == m_startRoom || candidate == m_exitRoom) continue;
+                if (candidate->hasKey) continue;
+                
+                std::vector<Room*> path = FindPathWithoutKey(m_startRoom, candidate, keyType);
+                if (!path.empty()) {
+                    candidate->hasKey = true;
+                    candidate->keyType = keyType;
+                    keyPlaced = true;
+                    std::cout << "Placed " << GetKeyName(keyType) 
+                              << " key in room (" << x << "," << y << ")\n";
+                }
+            }
+        }
+        
+        if (!keyPlaced) {
+            for (int y = 0; y < m_height && !keyPlaced; ++y) {
+                for (int x = 0; x < m_width && !keyPlaced; ++x) {
+                    Room* candidate = m_rooms[y][x].get();
+                    if (candidate == m_startRoom || candidate == m_exitRoom) continue;
+                    if (candidate->hasKey) continue;
+                    
+                    candidate->hasKey = true;
+                    candidate->keyType = keyType;
+                    keyPlaced = true;
+                    std::cout << "Placed " << GetKeyName(keyType) 
+                              << " key in room (" << x << "," << y << ") (fallback)\n";
+                }
+            }
+        }
+    }
 }

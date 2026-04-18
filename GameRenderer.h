@@ -13,6 +13,17 @@ public:
     void Run();
     
 private:
+    bool m_hasRedKey = false;
+    bool m_hasBlueKey = false;
+    bool m_hasGreenKey = false;
+    bool m_hasGoldKey = false;
+    
+    bool HasKey(KeyType keyType);
+    void PickupKey(Room* room);
+    bool TryOpenDoor(Room* room, Direction dir);
+    void DrawKeyInRoom(Room* room);
+    bool IsKeyHitByRay(Ray ray, Room* room);
+
     void HandleInput();
     void Update();
     void Draw();
@@ -20,6 +31,7 @@ private:
     void DrawRoom(Room* room);
     void DrawDoors3D(Room* room);
     void DrawMinimap();
+    void DrawDebugMap();
     void DrawDoorIndicators();
     void DrawCrosshair();
     void DrawDebugInfo();
@@ -39,7 +51,7 @@ private:
     
     bool m_devMode = true;
     bool m_showMinimap = true;
-    bool m_showDebug = false;
+    bool m_showDebug = false; 
     
     const float ROOM_SIZE = 8.0f;
     const float WALL_HEIGHT = 3.0f;
