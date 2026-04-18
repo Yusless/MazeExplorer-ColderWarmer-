@@ -14,7 +14,7 @@ public:
     MazeGraph(int width, int height);
     
     void Generate();
-    void PlaceKeys();  // ← ДОБАВИТЬ
+    void PlaceKeys();
     void SetStartRoom(int x, int y);
     void SetExitRoom(int x, int y);
     
@@ -37,8 +37,8 @@ private:
     std::mt19937 m_gen;
     
     void ConnectRooms(Room* from, Room* to, Direction dir);
-    void LockRandomDoors();  // ← ДОБАВИТЬ
-    std::vector<Room*> FindPathWithoutKey(Room* start, Room* end, KeyType keyToIgnore);  // ← ДОБАВИТЬ
+    void LockRandomDoors();
+    std::vector<Room*> FindPathWithoutKey(Room* start, Room* end, KeyType keyToIgnore);
 };
 
 #endif

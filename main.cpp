@@ -3,8 +3,6 @@
 #include <iostream>
 
 int main(int argc, char* argv[]) {
-    std::cout << "=== Maze Explorer ===\n";
-    std::cout << "A simple room-based maze navigation prototype\n\n";
     
     int width = 5;
     int height = 5;
