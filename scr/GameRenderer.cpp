@@ -1,5 +1,6 @@
-// GameRenderer.cpp
-#include "GameRenderer.h"
+#include "game_renderer.hpp"
+#include "maze_graph.hpp"
+#include "room.hpp"
 #include <iostream>
 #include <raymath.h>
 #include <cmath>

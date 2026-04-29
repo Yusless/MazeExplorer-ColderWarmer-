@@ -1,6 +1,7 @@
 // main.cpp
-#include "GameRenderer.h"
+#include "game_renderer.hpp"
 #include <iostream>
+#include <cstdlib>
 
 int main(int argc, char* argv[]) {
     

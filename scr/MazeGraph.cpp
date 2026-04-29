@@ -1,7 +1,8 @@
-// MazeGraph.cpp
-#include "MazeGraph.h"
+#include "maze_graph.hpp"
+#include "room.hpp"
 #include <algorithm>
 #include <iostream>
+#include <random>
 
 MazeGraph::MazeGraph(int width, int height) 
     : m_width(width), m_height(height), m_gen(m_rd()) {
