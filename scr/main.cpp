@@ -1,5 +1,5 @@
 // main.cpp
-#include "game_renderer.hpp"
+#include "GameRenderer.h"
 #include <iostream>
 #include <cstdlib>
 

@@ -1,5 +1,5 @@
-#include "maze_graph.hpp"
-#include "room.hpp"
+#include "MazeGraph.h"
+#include "Room.h"
 #include <algorithm>
 #include <iostream>
 #include <random>

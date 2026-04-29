@@ -1,11 +1,9 @@
-#include "room.hpp"
+#include "Room.h"
 
-// Конструктор Room
 Room::Room(int x, int y) : gridX(x), gridY(y) {
     worldPosition = {-x * 10.0f, 0.0f, y * 10.0f};
 }
 
-// getKeyColor
 Color GetKeyColor(KeyType type) {
     switch(type) {
         case KeyType::KEY_RED:   return RED;
@@ -16,7 +14,6 @@ Color GetKeyColor(KeyType type) {
     }
 }
 
-// GetKeyName
 const char* GetKeyName(KeyType type) {
     switch(type) {
         case KeyType::KEY_RED:   return "RED";
