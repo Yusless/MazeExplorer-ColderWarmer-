@@ -24,7 +24,8 @@ struct Room {
     bool hasKey = false;
     KeyType keyType = KeyType::NONE;
     
-    Room(int x, int y);  // Только объявление
+    Room(); 
+    Room(int x, int y);
 };
 
 // Только объявления функций

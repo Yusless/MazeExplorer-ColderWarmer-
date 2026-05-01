@@ -1,7 +1,9 @@
-#include "MazeGraph.h"
 #include "Room.h"
-#include <algorithm>
+#include "MazeGraph.h"
 #include <iostream>
+#include <stack>
+#include <map>
+#include <algorithm>
 #include <random>
 
 MazeGraph::MazeGraph(int width, int height) 
@@ -11,19 +13,19 @@ MazeGraph::MazeGraph(int width, int height)
     for (int y = 0; y < height; ++y) {
         m_rooms[y].resize(width);
         for (int x = 0; x < width; ++x) {
-            m_rooms[y][x] = std::make_unique<Room>(x, y);
-            m_rooms[y][x]->id = y * width + x;
+            m_rooms[y][x] = Room(x, y);
+            m_rooms[y][x].id = y * width + x;
         }
     }
 }
 
 void MazeGraph::Generate() {
-    std::vector<std::vector<bool>> visited(m_height, std::vector<bool>(m_width, false));
+    std::vector<std::vector<char>> visited(m_height, std::vector<char>(m_width, false));
     std::stack<Room*> stack;
     
     int startX = m_gen() % m_width;
     int startY = m_gen() % m_height;
-    Room* current = m_rooms[startY][startX].get();
+    Room* current = &m_rooms[startY][startX];
     
     visited[startY][startX] = true;
     stack.push(current);
@@ -35,19 +37,19 @@ void MazeGraph::Generate() {
         
         if (current->gridY > 0 && !visited[current->gridY-1][current->gridX]) {
             unvisitedNeighbors.push_back({Direction::NORTH, 
-                m_rooms[current->gridY-1][current->gridX].get()});
+                &m_rooms[current->gridY-1][current->gridX]});
         }
         if (current->gridY < m_height-1 && !visited[current->gridY+1][current->gridX]) {
             unvisitedNeighbors.push_back({Direction::SOUTH, 
-                m_rooms[current->gridY+1][current->gridX].get()});
+                &m_rooms[current->gridY+1][current->gridX]});
         }
         if (current->gridX > 0 && !visited[current->gridY][current->gridX-1]) {
             unvisitedNeighbors.push_back({Direction::WEST, 
-                m_rooms[current->gridY][current->gridX-1].get()});
+                &m_rooms[current->gridY][current->gridX-1]});
         }
         if (current->gridX < m_width-1 && !visited[current->gridY][current->gridX+1]) {
             unvisitedNeighbors.push_back({Direction::EAST, 
-                m_rooms[current->gridY][current->gridX+1].get()});
+                &m_rooms[current->gridY][current->gridX+1]});
         }
         
         if (!unvisitedNeighbors.empty()) {
@@ -63,8 +65,8 @@ void MazeGraph::Generate() {
         }
     }
     
-    m_startRoom = m_rooms[0][0].get();
-    m_exitRoom = m_rooms[m_height-1][m_width-1].get();
+    m_startRoom = &m_rooms[0][0];
+    m_exitRoom = &m_rooms[m_height-1][m_width-1];
     
     PlaceKeys();
     
@@ -89,7 +91,7 @@ void MazeGraph::ConnectRooms(Room* from, Room* to, Direction dir) {
 
 Room* MazeGraph::GetRoom(int x, int y) {
     if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
-        return m_rooms[y][x].get();
+        return &m_rooms[y][x];
     }
     return nullptr;
 }
@@ -111,14 +113,14 @@ void MazeGraph::PrintGraph() const {
     for (int y = 0; y < m_height; ++y) {
         for (int x = 0; x < m_width; ++x) {
             std::cout << "+";
-            std::cout << (m_rooms[y][x]->hasDoor[0] ? "   " : "---");
+            std::cout << (m_rooms[y][x].hasDoor[0] ? "   " : "---");
         }
         std::cout << "+\n";
         
         for (int x = 0; x < m_width; ++x) {
-            std::cout << (m_rooms[y][x]->hasDoor[3] ? " " : "|");
-            if (m_rooms[y][x].get() == m_startRoom) std::cout << " S ";
-            else if (m_rooms[y][x].get() == m_exitRoom) std::cout << " E ";
+            std::cout << (m_rooms[y][x].hasDoor[3] ? " " : "|");
+            if (&m_rooms[y][x] == m_startRoom) std::cout << " S ";
+            else if (&m_rooms[y][x] == m_exitRoom) std::cout << " E ";
             else std::cout << "   ";
         }
         std::cout << "|\n";
@@ -136,7 +138,7 @@ void MazeGraph::LockRandomDoors() {
     
     for (int y = 0; y < m_height; ++y) {
         for (int x = 0; x < m_width; ++x) {
-            Room* r = m_rooms[y][x].get();
+            Room* r = &m_rooms[y][x];
             for (int i = 0; i < 4; ++i) {
                 if (r->hasDoor[i] && r->neighbors[i] != nullptr) {
                     if (r == m_startRoom || r->neighbors[i] == m_startRoom) continue;
@@ -222,7 +224,7 @@ void MazeGraph::PlaceKeys() {
     
     for (int y = 0; y < m_height; ++y) {
         for (int x = 0; x < m_width; ++x) {
-            Room* r = m_rooms[y][x].get();
+            Room* r = &m_rooms[y][x];
             for (int i = 0; i < 4; ++i) {
                 if (r->doorKey[i] != KeyType::NONE) {
                     neededKeys[r->doorKey[i]] = true;
@@ -236,7 +238,7 @@ void MazeGraph::PlaceKeys() {
         
         for (int y = 0; y < m_height && !keyPlaced; ++y) {
             for (int x = 0; x < m_width && !keyPlaced; ++x) {
-                Room* candidate = m_rooms[y][x].get();
+                Room* candidate = &m_rooms[y][x];
                 
                 if (candidate == m_startRoom || candidate == m_exitRoom) continue;
                 if (candidate->hasKey) continue;
@@ -255,7 +257,7 @@ void MazeGraph::PlaceKeys() {
         if (!keyPlaced) {
             for (int y = 0; y < m_height && !keyPlaced; ++y) {
                 for (int x = 0; x < m_width && !keyPlaced; ++x) {
-                    Room* candidate = m_rooms[y][x].get();
+                    Room* candidate = &m_rooms[y][x];
                     if (candidate == m_startRoom || candidate == m_exitRoom) continue;
                     if (candidate->hasKey) continue;
                     

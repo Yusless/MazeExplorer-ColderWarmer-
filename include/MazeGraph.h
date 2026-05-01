@@ -5,9 +5,6 @@
 #include "Room.h"
 #include <vector>
 #include <random>
-#include <stack>
-#include <memory>
-#include <map>
 
 class MazeGraph {
 public:
@@ -29,7 +26,7 @@ public:
     
 private:
     int m_width, m_height;
-    std::vector<std::vector<std::unique_ptr<Room>>> m_rooms;
+    std::vector<std::vector<Room>> m_rooms;;
     Room* m_startRoom = nullptr;
     Room* m_exitRoom = nullptr;
     
