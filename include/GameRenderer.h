@@ -12,16 +12,6 @@ public:
     void Run();
     
 private:
-    bool m_hasRedKey = false;
-    bool m_hasBlueKey = false;
-    bool m_hasGreenKey = false;
-    bool m_hasGoldKey = false;
-    
-    bool HasKey(KeyType keyType);
-    void PickupKey(Room* room);
-    bool TryOpenDoor(Room* room, Direction dir);
-    void DrawKeyInRoom(Room* room);
-    bool IsKeyHitByRay(Ray ray, Room* room);
 
     void HandleInput();
     void Update();
@@ -34,8 +24,7 @@ private:
     void DrawDoorIndicators();
     void DrawCrosshair();
     void DrawDebugInfo();
-    
-    bool CanMoveToRoom(Room* from, Direction dir);
+
     void MoveToRoom(Room* newRoom);
     Direction GetDoorFromRay(Ray ray, Room* room);
     Direction GetDirectionFromAngle(float angle);

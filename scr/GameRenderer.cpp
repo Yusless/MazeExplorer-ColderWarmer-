@@ -87,19 +87,13 @@ void GameRenderer::HandleInput() {
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         Ray ray = GetMouseRay({GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, m_camera);
         
-        if (IsKeyHitByRay(ray, m_currentRoom)) {
-            PickupKey(m_currentRoom);
-        }
-        else {
             Direction clickedDoor = GetDoorFromRay(ray, m_currentRoom);
             
             if (clickedDoor != Direction::NONE) {
                 int dirIndex = static_cast<int>(clickedDoor);
-                
-                if (TryOpenDoor(m_currentRoom, clickedDoor)) {                   
-                    MoveToRoom(m_currentRoom->neighbors[dirIndex]);
-                }
-            }
+                               
+                MoveToRoom(m_currentRoom->neighbors[dirIndex]);
+
         }
     }
 }
@@ -117,7 +111,6 @@ void GameRenderer::Draw() {
     
     DrawRoom(m_currentRoom);
     DrawDoors3D(m_currentRoom);
-    DrawKeyInRoom(m_currentRoom);
     
     EndMode3D();
     
@@ -131,24 +124,9 @@ void GameRenderer::Draw() {
         }
     }
     
-    DrawDoorIndicators();
     DrawDebugInfo();
     
     DisableCursor();
-    DrawText(TextFormat("Room: (%d, %d)", m_currentRoom->gridX, m_currentRoom->gridY), 
-             10, 30, 20, LIGHTGRAY);
-    
-    // Список ключей
-    int keyY = 60;
-    if (m_hasRedKey)   { DrawText("RED KEY",   10, keyY, 16, RED);   keyY += 20; }
-    if (m_hasBlueKey)  { DrawText("BLUE KEY",  10, keyY, 16, BLUE);  keyY += 20; }
-    if (m_hasGreenKey) { DrawText("GREEN KEY", 10, keyY, 16, GREEN); keyY += 20; }
-    if (m_hasGoldKey)  { DrawText("GOLD KEY",  10, keyY, 16, GOLD);  keyY += 20; }
-    
-    if (m_currentRoom->hasKey) {
-        DrawText("Click on key to pick up", 
-                 GetScreenWidth()/2 - 100, GetScreenHeight() - 40, 20, YELLOW);
-    }
     
     if (m_currentRoom == m_maze.GetExitRoom()) {
         DrawText("YOU ESCAPED! Congratulations!", 
@@ -239,12 +217,7 @@ void GameRenderer::DrawDoors3D(Room* room) {
     if (room->hasDoor[0]) {
         Vector3 doorPos = {pos.x, DOOR_HEIGHT/2, pos.z + half};
         
-        Color doorColor;
-        if (room->doorKey[0] != KeyType::NONE) {
-            doorColor = GetKeyColor(room->doorKey[0]);
-        } else {
-            doorColor = (Color){139, 69, 19, 255};
-        }
+        Color doorColor = (Color){139, 69, 19, 255};
         
         DrawCube(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness, doorColor);
         DrawCubeWires(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness + 0.01f, frameColor);
@@ -258,12 +231,7 @@ void GameRenderer::DrawDoors3D(Room* room) {
     if (room->hasDoor[1]) {
         Vector3 doorPos = {pos.x, DOOR_HEIGHT/2, pos.z - half};
         
-        Color doorColor;
-        if (room->doorKey[1] != KeyType::NONE) {
-            doorColor = GetKeyColor(room->doorKey[1]);
-        } else {
-            doorColor = (Color){139, 69, 19, 255};
-        }
+        Color doorColor = (Color){139, 69, 19, 255};
         
         DrawCube(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness, doorColor);
         DrawCubeWires(doorPos, DOOR_WIDTH, DOOR_HEIGHT, doorThickness + 0.01f, frameColor);
@@ -277,12 +245,7 @@ void GameRenderer::DrawDoors3D(Room* room) {
     if (room->hasDoor[3]) {
         Vector3 doorPos = {pos.x + half, DOOR_HEIGHT/2, pos.z};
         
-        Color doorColor;
-        if (room->doorKey[2] != KeyType::NONE) {
-            doorColor = GetKeyColor(room->doorKey[2]);
-        } else {
-            doorColor = (Color){139, 69, 19, 255};
-        }
+        Color doorColor = (Color){139, 69, 19, 255};
         
         DrawCube(doorPos, doorThickness, DOOR_HEIGHT, DOOR_WIDTH, doorColor);
         DrawCubeWires(doorPos, doorThickness + 0.01f, DOOR_HEIGHT, DOOR_WIDTH, frameColor);
@@ -296,12 +259,7 @@ void GameRenderer::DrawDoors3D(Room* room) {
     if (room->hasDoor[2]) {
         Vector3 doorPos = {pos.x - half, DOOR_HEIGHT/2, pos.z};
         
-        Color doorColor;
-        if (room->doorKey[3] != KeyType::NONE) {
-            doorColor = GetKeyColor(room->doorKey[3]);
-        } else {
-            doorColor = (Color){139, 69, 19, 255};
-        }
+        Color doorColor = (Color){139, 69, 19, 255};
         
         DrawCube(doorPos, doorThickness, DOOR_HEIGHT, DOOR_WIDTH, doorColor);
         DrawCubeWires(doorPos, doorThickness + 0.01f, DOOR_HEIGHT, DOOR_WIDTH, frameColor);
@@ -377,58 +335,6 @@ void GameRenderer::DrawMinimap() {
         Vector2 left = {tip.x - arrowDirY * 4, tip.y + arrowDirX * 4};
         Vector2 right = {tip.x + arrowDirY * 4, tip.y - arrowDirX * 4};
         DrawTriangle(tip, left, right, Fade(YELLOW, 0.7f));
-    }
-}
-
-void GameRenderer::DrawDoorIndicators() {
-    Ray ray = GetMouseRay({GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, m_camera);
-
-    if (IsKeyHitByRay(ray, m_currentRoom)) {
-        int centerX = GetScreenWidth() / 2;
-        int centerY = GetScreenHeight() / 2;
-        
-        const char* text = TextFormat("Click to pick up %s key", 
-                                       GetKeyName(m_currentRoom->keyType));
-        int textWidth = MeasureText(text, 18);
-        
-        DrawRectangle(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(BLACK, 0.8f));
-        DrawRectangleLines(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(WHITE, 0.5f));
-        DrawText(text, centerX - textWidth/2, centerY + 35, 18, WHITE);
-        
-        DrawCircleLines(centerX, centerY, 10, Fade(GetKeyColor(m_currentRoom->keyType), 0.8f));
-        DrawCircle(centerX, centerY, 3, GetKeyColor(m_currentRoom->keyType));
-        return;
-    }
-    
-    Direction hoveredDoor = GetDoorFromRay(ray, m_currentRoom);
-    
-    if (hoveredDoor == Direction::NONE) return;
-    
-    int dirIndex = static_cast<int>(hoveredDoor);
-    bool isValidDoor = m_currentRoom->hasDoor[dirIndex] && 
-                       m_currentRoom->neighbors[dirIndex] != nullptr;
-    
-    if (isValidDoor) {
-        int centerX = GetScreenWidth() / 2;
-        int centerY = GetScreenHeight() / 2;
-        
-        KeyType requiredKey = m_currentRoom->doorKey[dirIndex];
-        const char* text;
-        
-        if (requiredKey != KeyType::NONE) {
-            text = TextFormat("Requires %s key", GetKeyName(requiredKey));
-        } else {
-            text = "Click to open door";
-        }
-        
-        int textWidth = MeasureText(text, 18);
-        DrawRectangle(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(BLACK, 0.8f));
-        DrawRectangleLines(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(WHITE, 0.5f));
-        DrawText(text, centerX - textWidth/2, centerY + 35, 18, WHITE);
-        
-        Color circleColor = (requiredKey != KeyType::NONE) ? GetKeyColor(requiredKey) : GREEN;
-        DrawCircleLines(centerX, centerY, 10, Fade(circleColor, 0.8f));
-        DrawCircle(centerX, centerY, 3, circleColor);
     }
 }
 
@@ -557,14 +463,6 @@ bool GameRenderer::IsLookingAtDoor(Direction dir, float toleranceDegrees) {
     return diff <= toleranceDegrees * DEG2RAD;
 }
 
-bool GameRenderer::CanMoveToRoom(Room* from, Direction dir) {
-    if (!from) return false;
-    if (dir == Direction::NONE) return false;
-    
-    int dirIndex = static_cast<int>(dir);
-    return from->hasDoor[dirIndex] && from->neighbors[dirIndex] != nullptr;
-}
-
 void GameRenderer::MoveToRoom(Room* newRoom) {
     if (!newRoom) return;
     
@@ -609,113 +507,6 @@ void GameRenderer::MoveToRoom(Room* newRoom) {
     m_camera.target = Vector3Add(m_camera.position, forward);
 }
 
-bool GameRenderer::IsKeyHitByRay(Ray ray, Room* room) {
-    if (!room->hasKey) return false;
-    
-    Vector3 pos = room->worldPosition;
-    Vector3 keyPos = {pos.x + 2.5f, 0.5f, pos.z + 2.5f};
-    
-    BoundingBox keyBox = {
-        {keyPos.x - 0.4f, keyPos.y - 0.4f, keyPos.z - 0.4f},
-        {keyPos.x + 0.4f, keyPos.y + 0.4f, keyPos.z + 0.4f}
-    };
-    
-    RayCollision collision = GetRayCollisionBox(ray, keyBox);
-    return collision.hit;
-}
-
-bool GameRenderer::HasKey(KeyType keyType) {
-    switch(keyType) {
-        case KeyType::KEY_RED:   return m_hasRedKey;
-        case KeyType::KEY_BLUE:  return m_hasBlueKey;
-        case KeyType::KEY_GREEN: return m_hasGreenKey;
-        case KeyType::KEY_GOLD:  return m_hasGoldKey;
-        default:                 return false;
-    }
-}
-
-void GameRenderer::PickupKey(Room* room) {
-    if (!room->hasKey) return;
-    
-    switch(room->keyType) {
-        case KeyType::KEY_RED:   m_hasRedKey = true;   break;
-        case KeyType::KEY_BLUE:  m_hasBlueKey = true;  break;
-        case KeyType::KEY_GREEN: m_hasGreenKey = true; break;
-        case KeyType::KEY_GOLD:  m_hasGoldKey = true;  break;
-        default: return;
-    }
-    room->hasKey = false;
-}
-
-bool GameRenderer::TryOpenDoor(Room* room, Direction dir) {
-    int dirIndex = static_cast<int>(dir);
-    
-    if (!room->hasDoor[dirIndex] || room->neighbors[dirIndex] == nullptr) {
-        return false;
-    }
-    
-    KeyType requiredKey = room->doorKey[dirIndex];
-    
-    if (requiredKey != KeyType::NONE) {
-        if (HasKey(requiredKey)) {
-            
-            switch(requiredKey) {
-                case KeyType::KEY_RED:   m_hasRedKey = false;   break;
-                case KeyType::KEY_BLUE:  m_hasBlueKey = false;  break;
-                case KeyType::KEY_GREEN: m_hasGreenKey = false; break;
-                case KeyType::KEY_GOLD:  m_hasGoldKey = false;  break;
-                default: break;
-            }
-            
-            room->doorKey[dirIndex] = KeyType::NONE;
-            Room* neighbor = room->neighbors[dirIndex];
-            for (int i = 0; i < 4; ++i) {
-                if (neighbor->neighbors[i] == room) {
-                    neighbor->doorKey[i] = KeyType::NONE;
-                    break;
-                }
-            }
-            
-            return true;
-        } else {
-            const char* text = "You need the key!";
-            int centerX = GetScreenWidth() / 2;
-            int centerY = GetScreenHeight() / 2;
-            int textWidth = MeasureText(text, 18);
-            DrawRectangle(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(BLACK, 0.8f));
-            DrawRectangleLines(centerX - textWidth/2 - 8, centerY + 30, textWidth + 16, 28, Fade(WHITE, 0.5f));
-            DrawText(text, centerX - textWidth/2, centerY + 35, 18, WHITE);
-
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-void GameRenderer::DrawKeyInRoom(Room* room) {
-    if (!room->hasKey) return;
-    
-    Vector3 pos = room->worldPosition;
-    Color keyColor = GetKeyColor(room->keyType);
-    
-    Vector3 keyPos = {pos.x + 2.5f, 0.25f, pos.z + 2.5f};
-
-    DrawCylinderEx({keyPos.x, keyPos.y - 0.15f, keyPos.z}, 
-                   {keyPos.x, keyPos.y + 0.15f, keyPos.z}, 
-                   0.08f, 0.08f, 8, keyColor);
-    
-    DrawSphere({keyPos.x, keyPos.y + 0.25f, keyPos.z}, 0.12f, keyColor);
-    
-    DrawCylinderEx({keyPos.x - 0.08f, keyPos.y + 0.28f, keyPos.z}, 
-                   {keyPos.x + 0.08f, keyPos.y + 0.28f, keyPos.z}, 
-                   0.03f, 0.03f, 6, keyColor);
-
-    DrawCylinderEx({keyPos.x, 0.01f, keyPos.z}, 
-                   {keyPos.x, 0.02f, keyPos.z}, 
-                   0.4f, 0.4f, 8, Fade(keyColor, 0.2f));
-}
-
 void GameRenderer::DrawDebugMap() {
     int mapSize = 250;
     int cellSize = mapSize / std::max(m_maze.GetWidth(), m_maze.GetHeight());
@@ -747,32 +538,27 @@ void GameRenderer::DrawDebugMap() {
             
             DrawRectangle(drawX, drawY, cellSize - 1, cellSize - 1, roomColor);
             
-            if (room->hasKey) {
-                DrawCircle(drawX + cellSize/2, drawY + cellSize/2, cellSize/4, Fade(GetKeyColor(room->keyType), 0.9f));
-                DrawCircleLines(drawX + cellSize/2, drawY + cellSize/2, cellSize/4, WHITE);
-            }
-            
             int cx = drawX + cellSize/2;
             int cy = drawY + cellSize/2;
             int doorSize = cellSize / 4;
             
             if (room->hasDoor[0]) {
-                Color doorColor = (room->doorKey[0] != KeyType::NONE) ? GetKeyColor(room->doorKey[0]) : WHITE;
+                Color doorColor = WHITE;
                 DrawRectangle(cx - doorSize/2, drawY - doorSize/2, doorSize, doorSize, doorColor);
                 DrawRectangleLines(cx - doorSize/2, drawY - doorSize/2, doorSize, doorSize, BLACK);
             }
             if (room->hasDoor[1]) {
-                Color doorColor = (room->doorKey[1] != KeyType::NONE) ? GetKeyColor(room->doorKey[1]) : WHITE;
+                Color doorColor =  WHITE;
                 DrawRectangle(cx - doorSize/2, drawY + cellSize - doorSize/2, doorSize, doorSize, doorColor);
                 DrawRectangleLines(cx - doorSize/2, drawY + cellSize - doorSize/2, doorSize, doorSize, BLACK);
             }
             if (room->hasDoor[2]) {
-                Color doorColor = (room->doorKey[2] != KeyType::NONE) ? GetKeyColor(room->doorKey[2]) : WHITE;
+                Color doorColor = WHITE;
                 DrawRectangle(drawX + cellSize - doorSize/2, cy - doorSize/2, doorSize, doorSize, doorColor);
                 DrawRectangleLines(drawX + cellSize - doorSize/2, cy - doorSize/2, doorSize, doorSize, BLACK);
             }
             if (room->hasDoor[3]) {
-                Color doorColor = (room->doorKey[3] != KeyType::NONE) ? GetKeyColor(room->doorKey[3]) : WHITE;
+                Color doorColor = WHITE;
                 DrawRectangle(drawX - doorSize/2, cy - doorSize/2, doorSize, doorSize, doorColor);
                 DrawRectangleLines(drawX - doorSize/2, cy - doorSize/2, doorSize, doorSize, BLACK);
             }
