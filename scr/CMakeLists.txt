@@ -1,18 +1,25 @@
 set(SOURCES
     main.cpp
+    Game.cpp
+    InputHandler.cpp
+    CameraController.cpp
+    Renderer3D.cpp
+    MinimapRenderer.cpp
     MazeGraph.cpp
-    GameRenderer.cpp
-    room.cpp
+    Room.cpp
+    Wall.cpp
+    Floor.cpp
+    Door.cpp
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(MazeExplorer ${SOURCES})
 
-target_include_directories(${PROJECT_NAME} PRIVATE 
+target_include_directories(MazeExplorer PRIVATE 
     ${CMAKE_SOURCE_DIR}/include
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
+target_link_libraries(MazeExplorer PRIVATE raylib)
 
 if(WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE winmm)
+    target_link_libraries(MazeExplorer PRIVATE winmm)
 endif()

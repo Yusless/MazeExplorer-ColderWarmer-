@@ -1,4 +1,3 @@
-// MazeGraph.h
 #ifndef MAZE_GRAPH_H
 #define MAZE_GRAPH_H
 
@@ -25,7 +24,7 @@ public:
     
 private:
     int m_width, m_height;
-    std::vector<std::vector<Room>> m_rooms;;
+    std::vector<std::vector<Room>> m_rooms;
     Room* m_startRoom = nullptr;
     Room* m_exitRoom = nullptr;
     
