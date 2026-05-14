@@ -1,30 +1,53 @@
 #include "InputHandler.h"
+#include <iostream>
 
-InputHandler::InputHandler() : mouseDelta{0,0} {}
+InputHandler::InputHandler() : mouseDelta{0, 0} {}
 
 void InputHandler::Update() {
+    // Сохраняем предыдущие состояния
+    previousKeys = currentKeys;
+    previousMouse = currentMouse;
+    
+    // Получаем дельту мыши от raylib
     mouseDelta = GetMouseDelta();
-    // Обновление состояний клавиш можно не хранить, используем raylib напрямую в методах
+    
+    // Отладка: если мышь двигается, выводим
+    if (mouseDelta.x != 0 || mouseDelta.y != 0) {
+        std::cout << "InputHandler: raw mouse delta = " << mouseDelta.x << ", " << mouseDelta.y << std::endl;
+    }
+    
+    // Обновляем состояния клавиш
+    static const int keysToCheck[] = {KEY_M, KEY_F1, KEY_P};
+    for (int key : keysToCheck) {
+        currentKeys[key] = IsKeyDown(key);
+    }
+    
+    // Обновляем состояния мыши
+    currentMouse[MOUSE_LEFT_BUTTON] = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
 }
 
 bool InputHandler::IsKeyPressed(int key) const {
-    return IsKeyDown(key);
-}
-
-bool InputHandler::IsMouseButtonPressed(int button) const {
-    return IsMouseButtonDown(button);
-}
-
-Vector2 InputHandler::GetMouseDelta() const {
-    return mouseDelta;
+    auto it = currentKeys.find(key);
+    return it != currentKeys.end() && it->second;
 }
 
 bool InputHandler::IsKeyJustPressed(int key) const {
-    return IsKeyPressed(key);
+    auto curr = currentKeys.find(key);
+    auto prev = previousKeys.find(key);
+    return (curr != currentKeys.end() && curr->second) &&
+           (prev == previousKeys.end() || !prev->second);
+}
+
+bool InputHandler::IsMouseButtonPressed(int button) const {
+    auto it = currentMouse.find(button);
+    return it != currentMouse.end() && it->second;
 }
 
 bool InputHandler::IsMouseButtonJustPressed(int button) const {
-    return IsMouseButtonPressed(button);
+    auto curr = currentMouse.find(button);
+    auto prev = previousMouse.find(button);
+    return (curr != currentMouse.end() && curr->second) &&
+           (prev == previousMouse.end() || !prev->second);
 }
 
 void InputHandler::RegisterKeyCallback(int key, std::function<void()> callback) {

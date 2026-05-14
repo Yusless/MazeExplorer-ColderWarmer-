@@ -14,19 +14,7 @@ Game::Game(int mazeWidth, int mazeHeight)
     
     InitWindow(Constants::SCREEN_WIDTH, Constants::SCREEN_HEIGHT, "Maze Explorer");
     SetTargetFPS(60);
-    DisableCursor();
-    
-    m_input.RegisterKeyCallback(KEY_M, [this]() { 
-        m_showMinimap = !m_showMinimap; 
-        std::cout << "Minimap: " << (m_showMinimap ? "ON" : "OFF") << std::endl;
-    });
-    m_input.RegisterKeyCallback(KEY_F1, [this]() { 
-        m_showDebug = !m_showDebug; 
-        std::cout << "Debug: " << (m_showDebug ? "ON" : "OFF") << std::endl;
-    });
-    m_input.RegisterKeyCallback(KEY_P, [this]() { 
-        m_maze.PrintGraph(); 
-    });
+    DisableCursor();  // Важно! Захватываем мышь
 }
 
 Game::~Game() {
@@ -35,7 +23,6 @@ Game::~Game() {
 
 void Game::Run() {
     while (!WindowShouldClose()) {
-        m_input.Update();
         HandleInput();
         Update();
         Draw();
@@ -43,16 +30,35 @@ void Game::Run() {
 }
 
 void Game::HandleInput() {
-    m_input.ProcessCallbacks();
+    // Получаем дельту мыши напрямую из raylib
+    Vector2 mouseDelta = GetMouseDelta();
     
-    Vector2 mouseDelta = m_input.GetMouseDelta();
+    // Передаём в камеру
     m_camera.HandleMouseInput(mouseDelta);
     
-    if (m_input.IsMouseButtonJustPressed(MOUSE_LEFT_BUTTON)) {
+    // Обработка клавиш
+    if (IsKeyPressed(KEY_M)) {
+        m_showMinimap = !m_showMinimap;
+        std::cout << "Minimap: " << (m_showMinimap ? "ON" : "OFF") << std::endl;
+    }
+    if (IsKeyPressed(KEY_F1)) {
+        m_showDebug = !m_showDebug;
+        std::cout << "Debug: " << (m_showDebug ? "ON" : "OFF") << std::endl;
+    }
+    if (IsKeyPressed(KEY_P)) {
+        m_maze.PrintGraph();
+    }
+    
+    // Клик мыши для прохода через дверь
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        std::cout << "Left mouse button clicked!" << std::endl;
         Direction door = GetHoveredDoor();
         if (door != Direction::NONE) {
+            std::cout << "Door detected!" << std::endl;
             Room* next = m_currentRoom->GetNeighbor(door);
-            MoveToRoom(next);
+            if (next) {
+                MoveToRoom(next);
+            }
         }
     }
 }
@@ -87,15 +93,17 @@ void Game::Draw() {
     
     if (m_showDebug) {
         int y = 60;
-        DrawText("DEBUG INFO (F1 to hide)", 10, y, 20, YELLOW); y+=25;
-        DrawText(TextFormat("Angle: %.1f°", m_camera.GetAngle() * RAD2DEG), 10, y, 16, WHITE); y+=20;
+        DrawText("DEBUG INFO (F1 to hide)", 10, y, 20, YELLOW); y += 25;
+        DrawText(TextFormat("Angle: %.1f°", m_camera.GetAngle() * RAD2DEG), 10, y, 16, WHITE); y += 20;
+        
         Direction looking = GetHoveredDoor();
         const char* hoverName = "NONE";
         if (looking == Direction::NORTH) hoverName = "NORTH";
         else if (looking == Direction::SOUTH) hoverName = "SOUTH";
         else if (looking == Direction::EAST) hoverName = "EAST";
         else if (looking == Direction::WEST) hoverName = "WEST";
-        DrawText(TextFormat("Hover: %s", hoverName), 10, y, 16, WHITE); y+=20;
+        DrawText(TextFormat("Hover: %s", hoverName), 10, y, 16, WHITE); y += 20;
+        
         DrawText(TextFormat("Doors: N:%d S:%d E:%d W:%d",
                  m_currentRoom->HasDoor(Direction::NORTH),
                  m_currentRoom->HasDoor(Direction::SOUTH),
@@ -127,9 +135,9 @@ void Game::MoveToRoom(Room* newRoom) {
     float newAngle = 0.0f;
     switch(cameFrom) {
         case Direction::NORTH: newAngle = 0.0f; break;
-        case Direction::EAST:  newAngle = 3*M_PI/2; break;
+        case Direction::EAST:  newAngle = 3 * M_PI / 2; break;
         case Direction::SOUTH: newAngle = M_PI; break;
-        case Direction::WEST:  newAngle = M_PI/2; break;
+        case Direction::WEST:  newAngle = M_PI / 2; break;
         default: break;
     }
     m_camera.SetAngle(newAngle);
@@ -142,22 +150,18 @@ Direction Game::GetHoveredDoor() {
     Vector3 pos = m_currentRoom->GetWorldPosition();
     float half = Constants::ROOM_SIZE / 2.0f;
     
-    // Проверка двери NORTH
     if (m_currentRoom->HasDoor(Direction::NORTH)) {
         Door door({pos.x, Constants::DOOR_HEIGHT/2, pos.z + half}, Direction::NORTH);
         if (GetRayCollisionBox(ray, door.GetBoundingBox()).hit) return Direction::NORTH;
     }
-    // SOUTH
     if (m_currentRoom->HasDoor(Direction::SOUTH)) {
         Door door({pos.x, Constants::DOOR_HEIGHT/2, pos.z - half}, Direction::SOUTH);
         if (GetRayCollisionBox(ray, door.GetBoundingBox()).hit) return Direction::SOUTH;
     }
-    // EAST
     if (m_currentRoom->HasDoor(Direction::EAST)) {
         Door door({pos.x + half, Constants::DOOR_HEIGHT/2, pos.z}, Direction::EAST);
         if (GetRayCollisionBox(ray, door.GetBoundingBox()).hit) return Direction::EAST;
     }
-    // WEST
     if (m_currentRoom->HasDoor(Direction::WEST)) {
         Door door({pos.x - half, Constants::DOOR_HEIGHT/2, pos.z}, Direction::WEST);
         if (GetRayCollisionBox(ray, door.GetBoundingBox()).hit) return Direction::WEST;

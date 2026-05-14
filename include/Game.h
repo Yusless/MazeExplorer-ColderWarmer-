@@ -3,7 +3,6 @@
 
 #include "MazeGraph.h"
 #include "CameraController.h"
-#include "InputHandler.h"
 #include "Renderer3D.h"
 #include "MinimapRenderer.h"
 
@@ -23,7 +22,6 @@ private:
     MazeGraph m_maze;
     Room* m_currentRoom;
     CameraController m_camera;
-    InputHandler m_input;
     Renderer3D m_renderer3D;
     MinimapRenderer m_minimap;
     
