@@ -11,6 +11,8 @@ public:
     void Draw() const;
     void DrawHighlight() const;
     BoundingBox GetBoundingBox() const;
+    /// Slightly thicker along the door slab axis — stable ray picks for N/S (thin in Z).
+    BoundingBox GetPickBoundingBox() const;
     Direction GetDirection() const { return direction; }
     
 private:
@@ -22,5 +24,8 @@ private:
     Color handleColor;
     Vector3 size; // width, height, thickness
 };
+
+/// Chooses the door actually in front of the camera (smallest positive ray distance).
+Direction PickClosestDoorAlongRay(const Room* room, Ray ray);
 
 #endif

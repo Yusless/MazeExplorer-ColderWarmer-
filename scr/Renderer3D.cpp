@@ -105,21 +105,20 @@ void Renderer3D::DrawDoors(Room* room, const Camera3D& camera, Direction& outHov
     outHoveredDoor = Direction::NONE;
     
     Ray ray = GetMouseRay({GetScreenWidth()/2.0f, GetScreenHeight()/2.0f}, camera);
-    
-    auto checkDoor = [&](Direction dir, Vector3 doorPos) {
+    Direction hovered = PickClosestDoorAlongRay(room, ray);
+
+    auto drawDoor = [&](Direction dir, Vector3 doorPos) {
         if (!room->HasDoor(dir)) return;
         Door door(doorPos, dir);
-        BoundingBox box = door.GetBoundingBox();
-        RayCollision collision = GetRayCollisionBox(ray, box);
         door.Draw();
-        if (collision.hit) {
-            outHoveredDoor = dir;
+        if (dir == hovered) {
+            outHoveredDoor = hovered;
             door.DrawHighlight();
         }
     };
-    
-    checkDoor(Direction::NORTH, {pos.x, Constants::DOOR_HEIGHT/2, pos.z + half});
-    checkDoor(Direction::SOUTH, {pos.x, Constants::DOOR_HEIGHT/2, pos.z - half});
-    checkDoor(Direction::EAST,  {pos.x + half, Constants::DOOR_HEIGHT/2, pos.z});
-    checkDoor(Direction::WEST,  {pos.x - half, Constants::DOOR_HEIGHT/2, pos.z});
+
+    drawDoor(Direction::NORTH, {pos.x, Constants::DOOR_HEIGHT/2, pos.z + half});
+    drawDoor(Direction::SOUTH, {pos.x, Constants::DOOR_HEIGHT/2, pos.z - half});
+    drawDoor(Direction::EAST,  {pos.x + half, Constants::DOOR_HEIGHT/2, pos.z});
+    drawDoor(Direction::WEST,  {pos.x - half, Constants::DOOR_HEIGHT/2, pos.z});
 }

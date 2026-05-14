@@ -88,7 +88,7 @@ void Game::Draw() {
     DrawCircle(cx, cy, 2, WHITE);
     
     if (m_showMinimap) {
-        m_minimap.Draw(m_showDebug, m_currentRoom, m_camera.GetAngle());
+        m_minimap.Draw(m_showDebug, m_currentRoom, m_camera.GetAngle(), m_camera.GetPitch());
     }
     
     if (m_showDebug) {
@@ -120,51 +120,41 @@ void Game::Draw() {
 
 void Game::MoveToRoom(Room* newRoom) {
     if (!newRoom) return;
-    
-    Direction cameFrom = Direction::NONE;
-    for (int i = 0; i < 4; ++i) {
-        if (m_currentRoom->GetNeighbor(static_cast<Direction>(i)) == newRoom) {
-            cameFrom = static_cast<Direction>(i);
-            break;
-        }
-    }
-    
+
+    Room* oldRoom = m_currentRoom;
     m_currentRoom = newRoom;
     m_currentRoom->SetExplored(true);
-    
-    float newAngle = 0.0f;
-    switch(cameFrom) {
-        case Direction::NORTH: newAngle = 0.0f; break;
-        case Direction::EAST:  newAngle = 3 * M_PI / 2; break;
-        case Direction::SOUTH: newAngle = M_PI; break;
-        case Direction::WEST:  newAngle = M_PI / 2; break;
-        default: break;
+
+    Vector3 delta = Vector3Subtract(m_currentRoom->GetWorldPosition(), oldRoom->GetWorldPosition());
+    delta.y = 0.0f;
+    const float len = Vector3Length(delta);
+    if (len > 0.01f) {
+        Vector3 deltaN = Vector3Scale(delta, 1.0f / len);
+        float newAngle = atan2f(deltaN.x, deltaN.z);
+        const float TWO_PI = 2.0f * static_cast<float>(M_PI);
+        while (newAngle < 0.0f) newAngle += TWO_PI;
+        while (newAngle >= TWO_PI) newAngle -= TWO_PI;
+        m_camera.SetAngle(newAngle);
+        m_camera.SetPitch(0.0f);
+        m_camera.Update(m_currentRoom);
+
+        Vector3 f = m_camera.GetForward();
+        Vector3 flatF = {f.x, 0.0f, f.z};
+        if (Vector3Length(flatF) > 1e-5f) {
+            flatF = Vector3Normalize(flatF);
+            if (Vector3DotProduct(flatF, deltaN) < 0.0f) {
+                newAngle += (float)M_PI;
+                if (newAngle >= TWO_PI) newAngle -= TWO_PI;
+                m_camera.SetAngle(newAngle);
+            }
+        }
     }
-    m_camera.SetAngle(newAngle);
     m_camera.SetPitch(0.0f);
     m_camera.Update(m_currentRoom);
+    SetMousePosition(GetScreenWidth() / 2, GetScreenHeight() / 2);
 }
 
 Direction Game::GetHoveredDoor() {
     Ray ray = GetMouseRay({GetScreenWidth()/2.0f, GetScreenHeight()/2.0f}, m_camera.GetCamera());
-    Vector3 pos = m_currentRoom->GetWorldPosition();
-    float half = Constants::ROOM_SIZE / 2.0f;
-    
-    if (m_currentRoom->HasDoor(Direction::NORTH)) {
-        Door door({pos.x, Constants::DOOR_HEIGHT/2, pos.z + half}, Direction::NORTH);
-        if (GetRayCollisionBox(ray, door.GetBoundingBox()).hit) return Direction::NORTH;
-    }
-    if (m_currentRoom->HasDoor(Direction::SOUTH)) {
-        Door door({pos.x, Constants::DOOR_HEIGHT/2, pos.z - half}, Direction::SOUTH);
-        if (GetRayCollisionBox(ray, door.GetBoundingBox()).hit) return Direction::SOUTH;
-    }
-    if (m_currentRoom->HasDoor(Direction::EAST)) {
-        Door door({pos.x + half, Constants::DOOR_HEIGHT/2, pos.z}, Direction::EAST);
-        if (GetRayCollisionBox(ray, door.GetBoundingBox()).hit) return Direction::EAST;
-    }
-    if (m_currentRoom->HasDoor(Direction::WEST)) {
-        Door door({pos.x - half, Constants::DOOR_HEIGHT/2, pos.z}, Direction::WEST);
-        if (GetRayCollisionBox(ray, door.GetBoundingBox()).hit) return Direction::WEST;
-    }
-    return Direction::NONE;
+    return PickClosestDoorAlongRay(m_currentRoom, ray);
 }

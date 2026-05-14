@@ -26,7 +26,8 @@ void CameraController::HandleMouseInput(Vector2 mouseDelta) {
         }
     }
     
-    angle -= mouseDelta.x * Constants::MOUSE_SENSITIVITY;
+    // +: мышь вправо — yaw вправо (совпадает с atan2 в MoveToRoom и со стрелкой на миникарте (fx, −fz)).
+    angle += mouseDelta.x * Constants::MOUSE_SENSITIVITY;
     pitch -= mouseDelta.y * Constants::MOUSE_SENSITIVITY;
     
     const float TWO_PI = 2.0f * M_PI;

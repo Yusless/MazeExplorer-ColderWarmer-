@@ -5,14 +5,30 @@
 
 MinimapRenderer::MinimapRenderer(MazeGraph& maze) : maze(maze) {}
 
-void MinimapRenderer::Draw(bool showDebug, Room* currentRoom, float cameraAngle) {
+void MinimapRenderer::Draw(bool showDebug, Room* currentRoom, float cameraAngle, float cameraPitch) {
     if (showDebug)
-        DrawDebugMap(currentRoom, cameraAngle);
+        DrawDebugMap(currentRoom, cameraAngle, cameraPitch);
     else
-        DrawMinimap(currentRoom, cameraAngle);
+        DrawMinimap(currentRoom, cameraAngle, cameraPitch);
 }
 
-void MinimapRenderer::DrawMinimap(Room* currentRoom, float cameraAngle) {
+static void MinimapViewDirectionOnGrid(float cameraAngle, float cameraPitch,
+                                       float& outDirX, float& outDirY) {
+    float cosp = cosf(cameraPitch);
+    float fx = sinf(cameraAngle) * cosp;
+    float fz = cosf(cameraAngle) * cosp;
+    // Сетка: +screenX = +gridX, +screenY = +gridZ в мире. Шаг вперёд в мире (fx,fz) → (−fx, +fz) в клетках;
+    // «север вверху» карты: инвертируем только Y экрана → (fx, −fz).
+    outDirX = fx;
+    outDirY = -fz;
+    float len = sqrtf(outDirX * outDirX + outDirY * outDirY);
+    if (len > 1e-6f) {
+        outDirX /= len;
+        outDirY /= len;
+    }
+}
+
+void MinimapRenderer::DrawMinimap(Room* currentRoom, float cameraAngle, float cameraPitch) {
     int mapSize = 200;
     int cellSize = mapSize / std::max(maze.GetWidth(), maze.GetHeight());
     int mapX = GetScreenWidth() - mapSize - 30;
@@ -48,22 +64,24 @@ void MinimapRenderer::DrawMinimap(Room* currentRoom, float cameraAngle) {
         }
     }
     
-    // Стрелка направления
+    // Направление взгляда (проекция на XZ мира → сетка карты: +world Z = вниз по Y экрана)
     int roomX = mapX + currentRoom->GetGridX() * cellSize + cellSize/2;
     int roomY = mapY + currentRoom->GetGridY() * cellSize + cellSize/2;
-    float arrowDirX = -sinf(cameraAngle);
-    float arrowDirY = -cosf(cameraAngle);
-    int arrowLen = cellSize / 2;
+    float arrowDirX = 0.0f;
+    float arrowDirY = 0.0f;
+    MinimapViewDirectionOnGrid(cameraAngle, cameraPitch, arrowDirX, arrowDirY);
+    int arrowLen = cellSize * 3 / 5;
     int arrowX = roomX + (int)(arrowDirX * arrowLen);
     int arrowY = roomY + (int)(arrowDirY * arrowLen);
-    DrawCircle(roomX, roomY, cellSize/4, Fade(YELLOW, 0.3f));
-    DrawLine(roomX, roomY, arrowX, arrowY, YELLOW);
-    DrawTriangle({(float)arrowX, (float)arrowY}, 
-                 {(float)arrowX - arrowDirY*4, (float)arrowY + arrowDirX*4},
-                 {(float)arrowX + arrowDirY*4, (float)arrowY - arrowDirX*4}, Fade(YELLOW,0.7f));
+    DrawCircle(roomX, roomY, cellSize / 4, Fade(YELLOW, 0.35f));
+    DrawLine(roomX, roomY, arrowX, arrowY, Fade(WHITE, 0.95f));
+    DrawTriangle({(float)arrowX, (float)arrowY},
+                 {(float)arrowX - arrowDirY * 5.0f, (float)arrowY + arrowDirX * 5.0f},
+                 {(float)arrowX + arrowDirY * 5.0f, (float)arrowY - arrowDirX * 5.0f},
+                 Fade(WHITE, 0.9f));
 }
 
-void MinimapRenderer::DrawDebugMap(Room* currentRoom, float cameraAngle) {
+void MinimapRenderer::DrawDebugMap(Room* currentRoom, float cameraAngle, float cameraPitch) {
     int mapSize = 250;
     int cellSize = mapSize / std::max(maze.GetWidth(), maze.GetHeight());
     int mapX = GetScreenWidth() - mapSize - 30;
@@ -95,17 +113,18 @@ void MinimapRenderer::DrawDebugMap(Room* currentRoom, float cameraAngle) {
         }
     }
     
-    // Стрелка
     int roomX = mapX + currentRoom->GetGridX() * cellSize + cellSize/2;
     int roomY = mapY + currentRoom->GetGridY() * cellSize + cellSize/2;
-    float arrowDirX = -sinf(cameraAngle);
-    float arrowDirY = -cosf(cameraAngle);
-    int arrowLen = cellSize / 2;
+    float arrowDirX = 0.0f;
+    float arrowDirY = 0.0f;
+    MinimapViewDirectionOnGrid(cameraAngle, cameraPitch, arrowDirX, arrowDirY);
+    int arrowLen = cellSize * 3 / 5;
     int arrowX = roomX + (int)(arrowDirX * arrowLen);
     int arrowY = roomY + (int)(arrowDirY * arrowLen);
-    DrawCircle(roomX, roomY, cellSize/4, Fade(YELLOW, 0.3f));
-    DrawLine(roomX, roomY, arrowX, arrowY, YELLOW);
-    DrawTriangle({(float)arrowX, (float)arrowY}, 
-                 {(float)arrowX - arrowDirY*4, (float)arrowY + arrowDirX*4},
-                 {(float)arrowX + arrowDirY*4, (float)arrowY - arrowDirX*4}, Fade(YELLOW,0.7f));
+    DrawCircle(roomX, roomY, cellSize / 4, Fade(YELLOW, 0.35f));
+    DrawLine(roomX, roomY, arrowX, arrowY, Fade(WHITE, 0.95f));
+    DrawTriangle({(float)arrowX, (float)arrowY},
+                 {(float)arrowX - arrowDirY * 5.0f, (float)arrowY + arrowDirX * 5.0f},
+                 {(float)arrowX + arrowDirY * 5.0f, (float)arrowY - arrowDirX * 5.0f},
+                 Fade(WHITE, 0.9f));
 }
