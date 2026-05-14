@@ -8,8 +8,9 @@
 Game::Game(int mazeWidth, int mazeHeight)
     : m_floorManager(mazeWidth, mazeHeight),
       m_state(MENU), m_musicLoaded(false), m_musicStarted(false),
-      m_showMinimap(true), m_showDebug(false), m_devMode(true) {
-    
+      m_showMinimap(true), m_showDebug(false), m_devMode(true),
+      m_totalCoins(0)   // инициализация счётчика монет
+{
     InitWindow(Constants::SCREEN_WIDTH, Constants::SCREEN_HEIGHT, "Maze Explorer");
     InitAudioDevice();
     SetTargetFPS(60);
@@ -20,7 +21,7 @@ Game::Game(int mazeWidth, int mazeHeight)
         std::cout << "Audio device initialized successfully" << std::endl;
     }
     
-    // Поиск музыкального файла в разных папках
+    // Поиск музыкального файла
     const char* musicPaths[] = {
         "menu_music.ogg",
         "assets/menu_music.ogg",
@@ -32,7 +33,7 @@ Game::Game(int mazeWidth, int mazeHeight)
     for (const char* path : musicPaths) {
         if (FileExists(path)) {
             m_music = LoadMusicStream(path);
-            m_music.looping = false;
+            m_music.looping = false;   // отключаем зацикливание
             m_musicLoaded = true;
             found = true;
             std::cout << "Music loaded from: " << path << std::endl;
@@ -104,6 +105,9 @@ void Game::HandleInput() {
     }
     
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        Ray ray = GetMouseRay({GetScreenWidth()/2.0f, GetScreenHeight()/2.0f}, m_camera.GetCamera());
+        
+        // 1. Проверяем, не смотрим ли на дверь
         Direction door = GetHoveredDoor();
         if (door != Direction::NONE) {
             Room* next = m_currentRoom->GetNeighbor(door);
@@ -117,6 +121,20 @@ void Game::HandleInput() {
                     m_camera.SetPitch(0.0f);
                     m_camera.Update(m_currentRoom);
                     std::cout << "=== Entered floor " << m_floorManager.GetCurrentFloor() << " ===" << std::endl;
+                }
+            }
+        } else {
+            // 2. Если не дверь, пытаемся подобрать монетку
+            auto& coins = m_floorManager.GetCoins();
+            for (auto& coin : coins) {
+                if (!coin.IsCollected()) {
+                    RayCollision coll = GetRayCollisionBox(ray, coin.GetBoundingBox());
+                    if (coll.hit) {
+                        coin.Collect();
+                        AddCoin();
+                        std::cout << "Coin collected! Total: " << m_totalCoins << std::endl;
+                        break; // только одна монетка за один клик
+                    }
                 }
             }
         }
@@ -143,6 +161,11 @@ void Game::Draw() {
     m_renderer3D.DrawRoom(m_currentRoom);
     Direction hovered;
     m_renderer3D.DrawDoors(m_currentRoom, m_camera.GetCamera(), hovered);
+    
+    // Отрисовка монеток
+    for (const auto& coin : m_floorManager.GetCoins()) {
+        coin.Draw();
+    }
     
     Vector3 startPos = m_floorManager.GetStartRoom()->GetWorldPosition();
     Vector3 exitPos = m_floorManager.GetExitRoom()->GetWorldPosition();
@@ -180,6 +203,10 @@ void Game::Draw() {
                  m_currentRoom->HasDoor(Direction::WEST)), 10, y, 16, WHITE);
         DrawText(TextFormat("Floor: %d", m_floorManager.GetCurrentFloor()), 10, y+20, 16, SKYBLUE);
     }
+    
+    // Счётчик монет (2D UI)
+    DrawCircle(25, 25, 15, YELLOW);
+    DrawText(TextFormat("%d", m_totalCoins), 45, 15, 30, WHITE);
     
     if (m_currentRoom == m_floorManager.GetExitRoom()) {
         DrawText("YOU ESCAPED! Go to next floor!", GetScreenWidth()/2-200, GetScreenHeight()/2, 30, GREEN);
