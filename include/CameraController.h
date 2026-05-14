@@ -17,6 +17,8 @@ public:
     float GetAngle() const { return angle; }
     float GetPitch() const { return pitch; }
     Vector3 GetForward() const;
+    /// Единичный вектор взгляда на плоскости XZ (учитывает pitch); для миникарты без привязки к знаку мыши.
+    Vector2 GetPlanarForwardXZ() const;
     
 private:
     Camera3D camera;

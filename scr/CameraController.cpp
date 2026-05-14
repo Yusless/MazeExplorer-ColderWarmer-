@@ -2,7 +2,7 @@
 #include "Constants.h"
 #include <raymath.h>
 #include <cmath>
-#include <iostream>  // ДОБАВЬТЕ ЭТУ СТРОКУ
+#include <iostream>
 
 CameraController::CameraController() : angle(0.0f), pitch(0.0f) {
     camera.up = {0.0f, 1.0f, 0.0f};
@@ -26,8 +26,7 @@ void CameraController::HandleMouseInput(Vector2 mouseDelta) {
         }
     }
     
-    // +: мышь вправо — yaw вправо (совпадает с atan2 в MoveToRoom и со стрелкой на миникарте (fx, −fz)).
-    angle += mouseDelta.x * Constants::MOUSE_SENSITIVITY;
+    angle -= mouseDelta.x * Constants::MOUSE_SENSITIVITY;
     pitch -= mouseDelta.y * Constants::MOUSE_SENSITIVITY;
     
     const float TWO_PI = 2.0f * M_PI;
@@ -63,4 +62,13 @@ Vector3 CameraController::GetForward() const {
         sinf(pitch),
         cosf(angle) * cosf(pitch)
     };
+}
+
+Vector2 CameraController::GetPlanarForwardXZ() const {
+    float cosp = cosf(pitch);
+    float fx = sinf(angle) * cosp;
+    float fz = cosf(angle) * cosp;
+    float len = sqrtf(fx * fx + fz * fz);
+    if (len > 1e-6f) return {fx / len, fz / len};
+    return {sinf(angle), cosf(angle)};
 }

@@ -21,28 +21,11 @@ void Renderer3D::DrawRoom(Room* room) {
     
     Color wallColor = {80, 80, 100, 255};
     
-    // Стены с учётом дверных проёмов
-    // Север (+Z)
+    // Стены с учётом дверных проёмов.
+    // worldX = +gridX*ROOM_SIZE: EAST (gx+1) — в +X; worldZ = gridY*ROOM_SIZE: NORTH (gy−1) — в −Z.
+    // NORTH — z = pos.z − half, SOUTH — z = pos.z + half, EAST — x = pos.x + half, WEST — x = pos.x − half.
+
     if (!room->HasDoor(Direction::NORTH)) {
-        Wall wall({pos.x, Constants::WALL_HEIGHT/2, pos.z + half}, 
-                  {Constants::ROOM_SIZE, Constants::WALL_HEIGHT, Constants::WALL_THICKNESS}, wallColor);
-        wall.Draw();
-    } else {
-        // Левая и правая части стены вокруг двери
-        Wall leftWall({pos.x - Constants::ROOM_SIZE/4 - Constants::DOOR_WIDTH/4, Constants::WALL_HEIGHT/2, pos.z + half},
-                      {Constants::ROOM_SIZE/2 - Constants::DOOR_WIDTH/2, Constants::WALL_HEIGHT, Constants::WALL_THICKNESS}, wallColor);
-        Wall rightWall({pos.x + Constants::ROOM_SIZE/4 + Constants::DOOR_WIDTH/4, Constants::WALL_HEIGHT/2, pos.z + half},
-                       {Constants::ROOM_SIZE/2 - Constants::DOOR_WIDTH/2, Constants::WALL_HEIGHT, Constants::WALL_THICKNESS}, wallColor);
-        leftWall.Draw();
-        rightWall.Draw();
-        // Верхняя перемычка
-        Wall top({pos.x, Constants::WALL_HEIGHT - 0.25f, pos.z + half},
-                 {Constants::DOOR_WIDTH, 0.5f, Constants::WALL_THICKNESS}, wallColor);
-        top.Draw();
-    }
-    
-    // Юг (-Z)
-    if (!room->HasDoor(Direction::SOUTH)) {
         Wall wall({pos.x, Constants::WALL_HEIGHT/2, pos.z - half},
                   {Constants::ROOM_SIZE, Constants::WALL_HEIGHT, Constants::WALL_THICKNESS}, wallColor);
         wall.Draw();
@@ -57,8 +40,23 @@ void Renderer3D::DrawRoom(Room* room) {
                  {Constants::DOOR_WIDTH, 0.5f, Constants::WALL_THICKNESS}, wallColor);
         top.Draw();
     }
-    
-    // Восток (+X)
+
+    if (!room->HasDoor(Direction::SOUTH)) {
+        Wall wall({pos.x, Constants::WALL_HEIGHT/2, pos.z + half},
+                  {Constants::ROOM_SIZE, Constants::WALL_HEIGHT, Constants::WALL_THICKNESS}, wallColor);
+        wall.Draw();
+    } else {
+        Wall leftWall({pos.x - Constants::ROOM_SIZE/4 - Constants::DOOR_WIDTH/4, Constants::WALL_HEIGHT/2, pos.z + half},
+                      {Constants::ROOM_SIZE/2 - Constants::DOOR_WIDTH/2, Constants::WALL_HEIGHT, Constants::WALL_THICKNESS}, wallColor);
+        Wall rightWall({pos.x + Constants::ROOM_SIZE/4 + Constants::DOOR_WIDTH/4, Constants::WALL_HEIGHT/2, pos.z + half},
+                       {Constants::ROOM_SIZE/2 - Constants::DOOR_WIDTH/2, Constants::WALL_HEIGHT, Constants::WALL_THICKNESS}, wallColor);
+        leftWall.Draw();
+        rightWall.Draw();
+        Wall top({pos.x, Constants::WALL_HEIGHT - 0.25f, pos.z + half},
+                 {Constants::DOOR_WIDTH, 0.5f, Constants::WALL_THICKNESS}, wallColor);
+        top.Draw();
+    }
+
     if (!room->HasDoor(Direction::EAST)) {
         Wall wall({pos.x + half, Constants::WALL_HEIGHT/2, pos.z},
                   {Constants::WALL_THICKNESS, Constants::WALL_HEIGHT, Constants::ROOM_SIZE}, wallColor);
@@ -74,8 +72,7 @@ void Renderer3D::DrawRoom(Room* room) {
                  {Constants::WALL_THICKNESS, 0.5f, Constants::DOOR_WIDTH}, wallColor);
         top.Draw();
     }
-    
-    // Запад (-X)
+
     if (!room->HasDoor(Direction::WEST)) {
         Wall wall({pos.x - half, Constants::WALL_HEIGHT/2, pos.z},
                   {Constants::WALL_THICKNESS, Constants::WALL_HEIGHT, Constants::ROOM_SIZE}, wallColor);
@@ -117,8 +114,8 @@ void Renderer3D::DrawDoors(Room* room, const Camera3D& camera, Direction& outHov
         }
     };
 
-    drawDoor(Direction::NORTH, {pos.x, Constants::DOOR_HEIGHT/2, pos.z + half});
-    drawDoor(Direction::SOUTH, {pos.x, Constants::DOOR_HEIGHT/2, pos.z - half});
+    drawDoor(Direction::NORTH, {pos.x, Constants::DOOR_HEIGHT/2, pos.z - half});
+    drawDoor(Direction::SOUTH, {pos.x, Constants::DOOR_HEIGHT/2, pos.z + half});
     drawDoor(Direction::EAST,  {pos.x + half, Constants::DOOR_HEIGHT/2, pos.z});
     drawDoor(Direction::WEST,  {pos.x - half, Constants::DOOR_HEIGHT/2, pos.z});
 }

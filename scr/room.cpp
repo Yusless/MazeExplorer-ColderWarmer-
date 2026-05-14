@@ -9,7 +9,7 @@ Room::Room()
 }
 
 Room::Room(int x, int y) 
-    : id(-1), gridX(x), gridY(y), worldPosition{-x * Constants::ROOM_SIZE, 0.0f, y * Constants::ROOM_SIZE}, explored(false) {
+    : id(-1), gridX(x), gridY(y), worldPosition{x * Constants::ROOM_SIZE, 0.0f, y * Constants::ROOM_SIZE}, explored(false) {
     for (int i = 0; i < 4; ++i) {
         hasDoor[i] = false;
         neighbors[i] = nullptr;

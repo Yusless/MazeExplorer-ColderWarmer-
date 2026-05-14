@@ -88,7 +88,8 @@ void Game::Draw() {
     DrawCircle(cx, cy, 2, WHITE);
     
     if (m_showMinimap) {
-        m_minimap.Draw(m_showDebug, m_currentRoom, m_camera.GetAngle(), m_camera.GetPitch());
+        Vector2 f = m_camera.GetPlanarForwardXZ();
+        m_minimap.Draw(m_showDebug, m_currentRoom, f.x, f.y);
     }
     
     if (m_showDebug) {

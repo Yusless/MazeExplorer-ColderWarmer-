@@ -5,22 +5,17 @@
 
 MinimapRenderer::MinimapRenderer(MazeGraph& maze) : maze(maze) {}
 
-void MinimapRenderer::Draw(bool showDebug, Room* currentRoom, float cameraAngle, float cameraPitch) {
+void MinimapRenderer::Draw(bool showDebug, Room* currentRoom, float fwdX, float fwdZ) {
     if (showDebug)
-        DrawDebugMap(currentRoom, cameraAngle, cameraPitch);
+        DrawDebugMap(currentRoom, fwdX, fwdZ);
     else
-        DrawMinimap(currentRoom, cameraAngle, cameraPitch);
+        DrawMinimap(currentRoom, fwdX, fwdZ);
 }
 
-static void MinimapViewDirectionOnGrid(float cameraAngle, float cameraPitch,
-                                       float& outDirX, float& outDirY) {
-    float cosp = cosf(cameraPitch);
-    float fx = sinf(cameraAngle) * cosp;
-    float fz = cosf(cameraAngle) * cosp;
-    // Сетка: +screenX = +gridX, +screenY = +gridZ в мире. Шаг вперёд в мире (fx,fz) → (−fx, +fz) в клетках;
-    // «север вверху» карты: инвертируем только Y экрана → (fx, −fz).
-    outDirX = fx;
-    outDirY = -fz;
+static void MinimapViewDirectionOnGrid(float fwdX, float fwdZ, float& outDirX, float& outDirY) {
+    // fwd — нормализованная проекция взгляда на XZ из камеры. Карта: +screenY = +world Z → стрелка (fx, −fz).
+    outDirX = fwdX;
+    outDirY = -fwdZ;
     float len = sqrtf(outDirX * outDirX + outDirY * outDirY);
     if (len > 1e-6f) {
         outDirX /= len;
@@ -28,7 +23,7 @@ static void MinimapViewDirectionOnGrid(float cameraAngle, float cameraPitch,
     }
 }
 
-void MinimapRenderer::DrawMinimap(Room* currentRoom, float cameraAngle, float cameraPitch) {
+void MinimapRenderer::DrawMinimap(Room* currentRoom, float fwdX, float fwdZ) {
     int mapSize = 200;
     int cellSize = mapSize / std::max(maze.GetWidth(), maze.GetHeight());
     int mapX = GetScreenWidth() - mapSize - 30;
@@ -69,7 +64,7 @@ void MinimapRenderer::DrawMinimap(Room* currentRoom, float cameraAngle, float ca
     int roomY = mapY + currentRoom->GetGridY() * cellSize + cellSize/2;
     float arrowDirX = 0.0f;
     float arrowDirY = 0.0f;
-    MinimapViewDirectionOnGrid(cameraAngle, cameraPitch, arrowDirX, arrowDirY);
+    MinimapViewDirectionOnGrid(fwdX, fwdZ, arrowDirX, arrowDirY);
     int arrowLen = cellSize * 3 / 5;
     int arrowX = roomX + (int)(arrowDirX * arrowLen);
     int arrowY = roomY + (int)(arrowDirY * arrowLen);
@@ -81,7 +76,7 @@ void MinimapRenderer::DrawMinimap(Room* currentRoom, float cameraAngle, float ca
                  Fade(WHITE, 0.9f));
 }
 
-void MinimapRenderer::DrawDebugMap(Room* currentRoom, float cameraAngle, float cameraPitch) {
+void MinimapRenderer::DrawDebugMap(Room* currentRoom, float fwdX, float fwdZ) {
     int mapSize = 250;
     int cellSize = mapSize / std::max(maze.GetWidth(), maze.GetHeight());
     int mapX = GetScreenWidth() - mapSize - 30;
@@ -117,7 +112,7 @@ void MinimapRenderer::DrawDebugMap(Room* currentRoom, float cameraAngle, float c
     int roomY = mapY + currentRoom->GetGridY() * cellSize + cellSize/2;
     float arrowDirX = 0.0f;
     float arrowDirY = 0.0f;
-    MinimapViewDirectionOnGrid(cameraAngle, cameraPitch, arrowDirX, arrowDirY);
+    MinimapViewDirectionOnGrid(fwdX, fwdZ, arrowDirX, arrowDirY);
     int arrowLen = cellSize * 3 / 5;
     int arrowX = roomX + (int)(arrowDirX * arrowLen);
     int arrowY = roomY + (int)(arrowDirY * arrowLen);

@@ -94,8 +94,8 @@ Direction PickClosestDoorAlongRay(const Room* room, Ray ray) {
         }
     };
 
-    tryDoor(Direction::NORTH, {pos.x, Constants::DOOR_HEIGHT / 2.0f, pos.z + half});
-    tryDoor(Direction::SOUTH, {pos.x, Constants::DOOR_HEIGHT / 2.0f, pos.z - half});
+    tryDoor(Direction::NORTH, {pos.x, Constants::DOOR_HEIGHT / 2.0f, pos.z - half});
+    tryDoor(Direction::SOUTH, {pos.x, Constants::DOOR_HEIGHT / 2.0f, pos.z + half});
     tryDoor(Direction::EAST, {pos.x + half, Constants::DOOR_HEIGHT / 2.0f, pos.z});
     tryDoor(Direction::WEST, {pos.x - half, Constants::DOOR_HEIGHT / 2.0f, pos.z});
 
