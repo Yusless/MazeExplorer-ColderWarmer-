@@ -5,7 +5,18 @@ Door::Door(Vector3 position, Direction dir, bool isOpen)
       doorColor{139, 69, 19, 255},
       frameColor{101, 67, 33, 255},
       handleColor(GOLD) {
-    size = {Constants::DOOR_WIDTH, Constants::DOOR_HEIGHT, 0.2f};
+    // N/S: проём вдоль X — ширина по X, толщина по Z.
+    // E/W: проём вдоль Z — ширина по Z, толщина по X.
+    constexpr float thickness = 0.2f;
+    switch (dir) {
+        case Direction::EAST:
+        case Direction::WEST:
+            size = {thickness, Constants::DOOR_HEIGHT, Constants::DOOR_WIDTH};
+            break;
+        default:
+            size = {Constants::DOOR_WIDTH, Constants::DOOR_HEIGHT, thickness};
+            break;
+    }
 }
 
 void Door::Draw() const {

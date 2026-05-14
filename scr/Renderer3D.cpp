@@ -111,11 +111,10 @@ void Renderer3D::DrawDoors(Room* room, const Camera3D& camera, Direction& outHov
         Door door(doorPos, dir);
         BoundingBox box = door.GetBoundingBox();
         RayCollision collision = GetRayCollisionBox(ray, box);
+        door.Draw();
         if (collision.hit) {
             outHoveredDoor = dir;
             door.DrawHighlight();
-        } else {
-            door.Draw();
         }
     };
     
