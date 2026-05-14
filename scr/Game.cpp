@@ -8,8 +8,8 @@
 Game::Game(int mazeWidth, int mazeHeight)
     : m_floorManager(mazeWidth, mazeHeight),
       m_state(MENU), m_musicLoaded(false), m_musicStarted(false),
-      m_showMinimap(true), m_showDebug(false), m_devMode(true),
-      m_totalCoins(0)   // инициализация счётчика монет
+      m_coinSoundLoaded(false), m_totalCoins(0),
+      m_showMinimap(true), m_showDebug(false), m_devMode(true)
 {
     InitWindow(Constants::SCREEN_WIDTH, Constants::SCREEN_HEIGHT, "Maze Explorer");
     InitAudioDevice();
@@ -21,7 +21,7 @@ Game::Game(int mazeWidth, int mazeHeight)
         std::cout << "Audio device initialized successfully" << std::endl;
     }
     
-    // Поиск музыкального файла
+    // Загрузка музыки (OGG)
     const char* musicPaths[] = {
         "menu_music.ogg",
         "assets/menu_music.ogg",
@@ -29,24 +29,45 @@ Game::Game(int mazeWidth, int mazeHeight)
         "../../menu_music.ogg",
         "../../assets/menu_music.ogg"
     };
-    bool found = false;
+    bool musicFound = false;
     for (const char* path : musicPaths) {
         if (FileExists(path)) {
             m_music = LoadMusicStream(path);
-            m_music.looping = false;   // отключаем зацикливание
+            m_music.looping = false;
             m_musicLoaded = true;
-            found = true;
+            musicFound = true;
             std::cout << "Music loaded from: " << path << std::endl;
             break;
         }
     }
-    if (!found) {
+    if (!musicFound) {
         std::cerr << "Music file not found. Place menu_music.ogg in build/scr/ or assets/ folder." << std::endl;
+    }
+    
+    // Загрузка звука монетки (OGG или WAV)
+    const char* coinPaths[] = {
+        "coin.ogg", "coin.wav",
+        "assets/coin.ogg", "assets/coin.wav",
+        "../coin.ogg", "../../coin.ogg"
+    };
+    bool coinFound = false;
+    for (const char* path : coinPaths) {
+        if (FileExists(path)) {
+            m_coinSound = LoadSound(path);
+            m_coinSoundLoaded = true;
+            coinFound = true;
+            std::cout << "Coin sound loaded from: " << path << std::endl;
+            break;
+        }
+    }
+    if (!coinFound) {
+        std::cerr << "Coin sound not found. Place coin.ogg or coin.wav in build/scr/ or assets/ folder." << std::endl;
     }
 }
 
 Game::~Game() {
     if (m_musicLoaded) UnloadMusicStream(m_music);
+    if (m_coinSoundLoaded) UnloadSound(m_coinSound);
     CloseAudioDevice();
     CloseWindow();
 }
@@ -107,7 +128,6 @@ void Game::HandleInput() {
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         Ray ray = GetMouseRay({GetScreenWidth()/2.0f, GetScreenHeight()/2.0f}, m_camera.GetCamera());
         
-        // 1. Проверяем, не смотрим ли на дверь
         Direction door = GetHoveredDoor();
         if (door != Direction::NONE) {
             Room* next = m_currentRoom->GetNeighbor(door);
@@ -124,7 +144,6 @@ void Game::HandleInput() {
                 }
             }
         } else {
-            // 2. Если не дверь, пытаемся подобрать монетку
             auto& coins = m_floorManager.GetCoins();
             for (auto& coin : coins) {
                 if (!coin.IsCollected()) {
@@ -132,8 +151,9 @@ void Game::HandleInput() {
                     if (coll.hit) {
                         coin.Collect();
                         AddCoin();
+                        if (m_coinSoundLoaded) PlaySound(m_coinSound);
                         std::cout << "Coin collected! Total: " << m_totalCoins << std::endl;
-                        break; // только одна монетка за один клик
+                        break;
                     }
                 }
             }
@@ -162,7 +182,6 @@ void Game::Draw() {
     Direction hovered;
     m_renderer3D.DrawDoors(m_currentRoom, m_camera.GetCamera(), hovered);
     
-    // Отрисовка монеток
     for (const auto& coin : m_floorManager.GetCoins()) {
         coin.Draw();
     }
@@ -204,7 +223,6 @@ void Game::Draw() {
         DrawText(TextFormat("Floor: %d", m_floorManager.GetCurrentFloor()), 10, y+20, 16, SKYBLUE);
     }
     
-    // Счётчик монет (2D UI)
     DrawCircle(25, 25, 15, YELLOW);
     DrawText(TextFormat("%d", m_totalCoins), 45, 15, 30, WHITE);
     

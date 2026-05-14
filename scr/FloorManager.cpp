@@ -4,8 +4,7 @@
 #include <algorithm>
 
 FloorManager::FloorManager(int width, int height)
-    : m_width(width), m_height(height), m_currentFloor(0) {
-}
+    : m_width(width), m_height(height), m_currentFloor(0) {}
 
 void FloorManager::GenerateFirstFloor() {
     m_currentFloor = 1;
@@ -41,7 +40,7 @@ void FloorManager::GenerateCoins() {
             Vector3 pos = room->GetWorldPosition();
             pos.x += offsetX;
             pos.z += offsetZ;
-            float half = 4.0f;
+            float half = Constants::ROOM_SIZE / 2.0f;
             pos.x = std::clamp(pos.x, room->GetWorldPosition().x - half + 0.8f, room->GetWorldPosition().x + half - 0.8f);
             pos.z = std::clamp(pos.z, room->GetWorldPosition().z - half + 0.8f, room->GetWorldPosition().z + half - 0.8f);
             pos.y = 0.2f;

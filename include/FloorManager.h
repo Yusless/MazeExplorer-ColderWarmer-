@@ -24,7 +24,6 @@ public:
     Room* GetRoom(int x, int y) const { return m_currentMaze ? m_currentMaze->GetRoom(x, y) : nullptr; }
     void PrintGraph() const { if (m_currentMaze) m_currentMaze->PrintGraph(); }
 
-    // Две версии для доступа к монеткам (константная и неконстантная)
     const std::vector<Coin>& GetCoins() const { return m_coins; }
     std::vector<Coin>& GetCoins() { return m_coins; }
 

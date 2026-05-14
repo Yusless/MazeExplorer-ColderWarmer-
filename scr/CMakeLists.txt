@@ -10,11 +10,10 @@ set(SOURCES
     Wall.cpp
     Floor.cpp
     Door.cpp
-    Coin.cpp
     FloorManager.cpp
     Menu.cpp
+    Coin.cpp
 )
-
 
 add_executable(MazeExplorer ${SOURCES})
 

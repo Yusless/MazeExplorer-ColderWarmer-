@@ -15,7 +15,7 @@ public:
 
 private:
     enum GameState { MENU, PLAYING };
-
+    
     void HandleInput();
     void Update();
     void Draw();
@@ -23,7 +23,6 @@ private:
     Direction GetHoveredDoor();
     void StartGame();
     void AddCoin() { ++m_totalCoins; }
-    void SpendCoins(int amount) { if (m_totalCoins >= amount) m_totalCoins -= amount; }
 
     FloorManager m_floorManager;
     Room* m_currentRoom;
@@ -31,17 +30,20 @@ private:
     Renderer3D m_renderer3D;
     MinimapRenderer m_minimap;
     Menu m_menu;
-
+    
     GameState m_state;
     Music m_music;
     bool m_musicLoaded;
     bool m_musicStarted;
-
+    
+    Sound m_coinSound;
+    bool m_coinSoundLoaded;
+    
+    int m_totalCoins;
+    
     bool m_showMinimap;
     bool m_showDebug;
     bool m_devMode;
-
-    int m_totalCoins;   // счётчик монет
 };
 
 #endif
