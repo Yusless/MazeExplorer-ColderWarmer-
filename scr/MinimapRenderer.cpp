@@ -3,17 +3,17 @@
 #include <algorithm>
 #include <cmath>
 
-MinimapRenderer::MinimapRenderer(MazeGraph& maze) : maze(maze) {}
 
-void MinimapRenderer::Draw(bool showDebug, Room* currentRoom, float fwdX, float fwdZ) {
+
+void MinimapRenderer::Draw(bool showDebug, Room* currentRoom, float fwdX, float fwdZ, MazeGraph* maze) {
+    if (!maze) return; // если лабиринта нет – ничего не рисуем
     if (showDebug)
-        DrawDebugMap(currentRoom, fwdX, fwdZ);
+        DrawDebugMap(currentRoom, fwdX, fwdZ, maze);
     else
-        DrawMinimap(currentRoom, fwdX, fwdZ);
+        DrawMinimap(currentRoom, fwdX, fwdZ, maze);
 }
 
 static void MinimapViewDirectionOnGrid(float fwdX, float fwdZ, float& outDirX, float& outDirY) {
-    // fwd — нормализованная проекция взгляда на XZ из камеры. Карта: +screenY = +world Z → стрелка (fx, −fz).
     outDirX = fwdX;
     outDirY = -fwdZ;
     float len = sqrtf(outDirX * outDirX + outDirY * outDirY);
@@ -23,26 +23,27 @@ static void MinimapViewDirectionOnGrid(float fwdX, float fwdZ, float& outDirX, f
     }
 }
 
-void MinimapRenderer::DrawMinimap(Room* currentRoom, float fwdX, float fwdZ) {
+void MinimapRenderer::DrawMinimap(Room* currentRoom, float fwdX, float fwdZ, MazeGraph* maze) {
     int mapSize = 200;
-    int cellSize = mapSize / std::max(maze.GetWidth(), maze.GetHeight());
+    int cellSize = mapSize / std::max(maze->GetWidth(), maze->GetHeight());
     int mapX = GetScreenWidth() - mapSize - 30;
     int mapY = 70;
     
     DrawRectangle(mapX - 10, mapY - 30, mapSize + 20, mapSize + 40, Fade(BLACK, 0.8f));
     DrawText("MINIMAP", mapX + mapSize/2 - 40, mapY - 25, 20, LIGHTGRAY);
     
-    for (int y = 0; y < maze.GetHeight(); ++y) {
-        for (int x = 0; x < maze.GetWidth(); ++x) {
-            Room* room = maze.GetRoom(x, y);
+    for (int y = 0; y < maze->GetHeight(); ++y) {
+        for (int x = 0; x < maze->GetWidth(); ++x) {
+            Room* room = maze->GetRoom(x, y);
+            if (!room) continue;
             int drawX = mapX + x * cellSize;
             int drawY = mapY + y * cellSize;
             
             Color color;
             if (room == currentRoom) color = YELLOW;
             else if (room->IsExplored()) {
-                if (room == maze.GetStartRoom()) color = GREEN;
-                else if (room == maze.GetExitRoom()) color = RED;
+                if (room == maze->GetStartRoom()) color = GREEN;
+                else if (room == maze->GetExitRoom()) color = RED;
                 else color = {100,100,200,255};
             } else color = DARKGRAY;
             
@@ -59,11 +60,10 @@ void MinimapRenderer::DrawMinimap(Room* currentRoom, float fwdX, float fwdZ) {
         }
     }
     
-    // Направление взгляда (проекция на XZ мира → сетка карты: +world Z = вниз по Y экрана)
+    // Направление взгляда
     int roomX = mapX + currentRoom->GetGridX() * cellSize + cellSize/2;
     int roomY = mapY + currentRoom->GetGridY() * cellSize + cellSize/2;
-    float arrowDirX = 0.0f;
-    float arrowDirY = 0.0f;
+    float arrowDirX = 0.0f, arrowDirY = 0.0f;
     MinimapViewDirectionOnGrid(fwdX, fwdZ, arrowDirX, arrowDirY);
     int arrowLen = cellSize * 3 / 5;
     int arrowX = roomX + (int)(arrowDirX * arrowLen);
@@ -76,24 +76,25 @@ void MinimapRenderer::DrawMinimap(Room* currentRoom, float fwdX, float fwdZ) {
                  Fade(WHITE, 0.9f));
 }
 
-void MinimapRenderer::DrawDebugMap(Room* currentRoom, float fwdX, float fwdZ) {
+void MinimapRenderer::DrawDebugMap(Room* currentRoom, float fwdX, float fwdZ, MazeGraph* maze) {
     int mapSize = 250;
-    int cellSize = mapSize / std::max(maze.GetWidth(), maze.GetHeight());
+    int cellSize = mapSize / std::max(maze->GetWidth(), maze->GetHeight());
     int mapX = GetScreenWidth() - mapSize - 30;
     int mapY = 70;
     
     DrawRectangle(mapX - 10, mapY - 30, mapSize + 20, mapSize + 40, Fade(BLACK, 0.8f));
     DrawText("DEBUG MAP", mapX + mapSize/2 - 50, mapY - 25, 16, YELLOW);
     
-    for (int y = 0; y < maze.GetHeight(); ++y) {
-        for (int x = 0; x < maze.GetWidth(); ++x) {
-            Room* room = maze.GetRoom(x, y);
+    for (int y = 0; y < maze->GetHeight(); ++y) {
+        for (int x = 0; x < maze->GetWidth(); ++x) {
+            Room* room = maze->GetRoom(x, y);
+            if (!room) continue;
             int drawX = mapX + x * cellSize;
             int drawY = mapY + y * cellSize;
             Color roomColor;
             if (room == currentRoom) roomColor = YELLOW;
-            else if (room == maze.GetStartRoom()) roomColor = GREEN;
-            else if (room == maze.GetExitRoom()) roomColor = RED;
+            else if (room == maze->GetStartRoom()) roomColor = GREEN;
+            else if (room == maze->GetExitRoom()) roomColor = RED;
             else if (room->IsExplored()) roomColor = {100,100,200,255};
             else roomColor = DARKGRAY;
             DrawRectangle(drawX, drawY, cellSize - 1, cellSize - 1, roomColor);
@@ -108,10 +109,10 @@ void MinimapRenderer::DrawDebugMap(Room* currentRoom, float fwdX, float fwdZ) {
         }
     }
     
+    // Направление взгляда
     int roomX = mapX + currentRoom->GetGridX() * cellSize + cellSize/2;
     int roomY = mapY + currentRoom->GetGridY() * cellSize + cellSize/2;
-    float arrowDirX = 0.0f;
-    float arrowDirY = 0.0f;
+    float arrowDirX = 0.0f, arrowDirY = 0.0f;
     MinimapViewDirectionOnGrid(fwdX, fwdZ, arrowDirX, arrowDirY);
     int arrowLen = cellSize * 3 / 5;
     int arrowX = roomX + (int)(arrowDirX * arrowLen);

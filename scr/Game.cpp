@@ -1,42 +1,96 @@
 #include "Game.h"
 #include "Door.h"
 #include "Constants.h"
+#include "Menu.h"
 #include <iostream>
 #include <raymath.h>
 
 Game::Game(int mazeWidth, int mazeHeight)
-    : m_maze(mazeWidth, mazeHeight), m_minimap(m_maze),
+    : m_floorManager(mazeWidth, mazeHeight),
+      m_state(MENU), m_musicLoaded(false), m_musicStarted(false),
       m_showMinimap(true), m_showDebug(false), m_devMode(true) {
     
-    m_maze.Generate();
-    m_currentRoom = m_maze.GetStartRoom();
-    m_currentRoom->SetExplored(true);
-    
     InitWindow(Constants::SCREEN_WIDTH, Constants::SCREEN_HEIGHT, "Maze Explorer");
+    InitAudioDevice();
     SetTargetFPS(60);
-    DisableCursor();  // Важно! Захватываем мышь
+    
+    if (!IsAudioDeviceReady()) {
+        std::cerr << "ERROR: Failed to initialize audio device!" << std::endl;
+    } else {
+        std::cout << "Audio device initialized successfully" << std::endl;
+    }
+    
+    // Поиск музыкального файла в разных папках
+    const char* musicPaths[] = {
+        "menu_music.ogg",
+        "assets/menu_music.ogg",
+        "../menu_music.ogg",
+        "../../menu_music.ogg",
+        "../../assets/menu_music.ogg"
+    };
+    bool found = false;
+    for (const char* path : musicPaths) {
+        if (FileExists(path)) {
+            m_music = LoadMusicStream(path);
+            m_music.looping = false;
+            m_musicLoaded = true;
+            found = true;
+            std::cout << "Music loaded from: " << path << std::endl;
+            break;
+        }
+    }
+    if (!found) {
+        std::cerr << "Music file not found. Place menu_music.ogg in build/scr/ or assets/ folder." << std::endl;
+    }
 }
 
 Game::~Game() {
+    if (m_musicLoaded) UnloadMusicStream(m_music);
+    CloseAudioDevice();
     CloseWindow();
 }
 
 void Game::Run() {
     while (!WindowShouldClose()) {
-        HandleInput();
-        Update();
-        Draw();
+        if (m_state == MENU) {
+            m_menu.Update();
+            if (m_musicLoaded && IsMusicStreamPlaying(m_music)) {
+                UpdateMusicStream(m_music);
+            }
+            BeginDrawing();
+            m_menu.Draw();
+            EndDrawing();
+            if (m_menu.ShouldStart()) {
+                StartGame();
+            }
+        } else {
+            HandleInput();
+            Update();
+            Draw();
+        }
+    }
+}
+
+void Game::StartGame() {
+    if (m_state != MENU) return;
+    m_state = PLAYING;
+    DisableCursor();
+    
+    m_floorManager.GenerateFirstFloor();
+    m_currentRoom = m_floorManager.GetStartRoom();
+    m_currentRoom->SetExplored(true);
+    
+    if (m_musicLoaded && !m_musicStarted) {
+        PlayMusicStream(m_music);
+        m_musicStarted = true;
+        std::cout << "Music started (plays once)" << std::endl;
     }
 }
 
 void Game::HandleInput() {
-    // Получаем дельту мыши напрямую из raylib
     Vector2 mouseDelta = GetMouseDelta();
-    
-    // Передаём в камеру
     m_camera.HandleMouseInput(mouseDelta);
     
-    // Обработка клавиш
     if (IsKeyPressed(KEY_M)) {
         m_showMinimap = !m_showMinimap;
         std::cout << "Minimap: " << (m_showMinimap ? "ON" : "OFF") << std::endl;
@@ -46,25 +100,39 @@ void Game::HandleInput() {
         std::cout << "Debug: " << (m_showDebug ? "ON" : "OFF") << std::endl;
     }
     if (IsKeyPressed(KEY_P)) {
-        m_maze.PrintGraph();
+        m_floorManager.PrintGraph();
     }
     
-    // Клик мыши для прохода через дверь
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-        std::cout << "Left mouse button clicked!" << std::endl;
         Direction door = GetHoveredDoor();
         if (door != Direction::NONE) {
-            std::cout << "Door detected!" << std::endl;
             Room* next = m_currentRoom->GetNeighbor(door);
             if (next) {
                 MoveToRoom(next);
+                if (m_currentRoom == m_floorManager.GetExitRoom()) {
+                    m_floorManager.NextFloor();
+                    m_currentRoom = m_floorManager.GetStartRoom();
+                    m_currentRoom->SetExplored(true);
+                    m_camera.SetAngle(0.0f);
+                    m_camera.SetPitch(0.0f);
+                    m_camera.Update(m_currentRoom);
+                    std::cout << "=== Entered floor " << m_floorManager.GetCurrentFloor() << " ===" << std::endl;
+                }
             }
         }
     }
 }
 
 void Game::Update() {
-    m_camera.Update(m_currentRoom);
+    if (m_musicLoaded && IsMusicStreamPlaying(m_music)) {
+        UpdateMusicStream(m_music);
+        if (!IsMusicStreamPlaying(m_music)) {
+            std::cout << "Music finished playing" << std::endl;
+        }
+    }
+    if (m_state == PLAYING) {
+        m_camera.Update(m_currentRoom);
+    }
 }
 
 void Game::Draw() {
@@ -76,8 +144,8 @@ void Game::Draw() {
     Direction hovered;
     m_renderer3D.DrawDoors(m_currentRoom, m_camera.GetCamera(), hovered);
     
-    Vector3 startPos = m_maze.GetStartRoom()->GetWorldPosition();
-    Vector3 exitPos = m_maze.GetExitRoom()->GetWorldPosition();
+    Vector3 startPos = m_floorManager.GetStartRoom()->GetWorldPosition();
+    Vector3 exitPos = m_floorManager.GetExitRoom()->GetWorldPosition();
     DrawSphere(startPos, 0.5f, GREEN);
     DrawSphere(exitPos, 0.5f, RED);
     
@@ -89,7 +157,7 @@ void Game::Draw() {
     
     if (m_showMinimap) {
         Vector2 f = m_camera.GetPlanarForwardXZ();
-        m_minimap.Draw(m_showDebug, m_currentRoom, f.x, f.y);
+        m_minimap.Draw(m_showDebug, m_currentRoom, f.x, f.y, m_floorManager.GetCurrentMaze());
     }
     
     if (m_showDebug) {
@@ -110,10 +178,11 @@ void Game::Draw() {
                  m_currentRoom->HasDoor(Direction::SOUTH),
                  m_currentRoom->HasDoor(Direction::EAST),
                  m_currentRoom->HasDoor(Direction::WEST)), 10, y, 16, WHITE);
+        DrawText(TextFormat("Floor: %d", m_floorManager.GetCurrentFloor()), 10, y+20, 16, SKYBLUE);
     }
     
-    if (m_currentRoom == m_maze.GetExitRoom()) {
-        DrawText("YOU ESCAPED! Congratulations!", GetScreenWidth()/2-150, GetScreenHeight()/2, 30, GREEN);
+    if (m_currentRoom == m_floorManager.GetExitRoom()) {
+        DrawText("YOU ESCAPED! Go to next floor!", GetScreenWidth()/2-200, GetScreenHeight()/2, 30, GREEN);
     }
     
     EndDrawing();
@@ -121,11 +190,10 @@ void Game::Draw() {
 
 void Game::MoveToRoom(Room* newRoom) {
     if (!newRoom) return;
-
     Room* oldRoom = m_currentRoom;
     m_currentRoom = newRoom;
     m_currentRoom->SetExplored(true);
-
+    
     Vector3 delta = Vector3Subtract(m_currentRoom->GetWorldPosition(), oldRoom->GetWorldPosition());
     delta.y = 0.0f;
     const float len = Vector3Length(delta);
@@ -138,7 +206,7 @@ void Game::MoveToRoom(Room* newRoom) {
         m_camera.SetAngle(newAngle);
         m_camera.SetPitch(0.0f);
         m_camera.Update(m_currentRoom);
-
+        
         Vector3 f = m_camera.GetForward();
         Vector3 flatF = {f.x, 0.0f, f.z};
         if (Vector3Length(flatF) > 1e-5f) {

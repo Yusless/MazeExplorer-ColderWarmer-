@@ -5,13 +5,12 @@
 
 class MinimapRenderer {
 public:
-    MinimapRenderer(MazeGraph& maze);
-    void Draw(bool showDebug, Room* currentRoom, float fwdX, float fwdZ);
+    MinimapRenderer() = default;
+    void Draw(bool showDebug, Room* currentRoom, float fwdX, float fwdZ, MazeGraph* maze);
     
 private:
-    MazeGraph& maze;
-    void DrawMinimap(Room* currentRoom, float fwdX, float fwdZ);
-    void DrawDebugMap(Room* currentRoom, float fwdX, float fwdZ);
+    void DrawMinimap(Room* currentRoom, float fwdX, float fwdZ, MazeGraph* maze);
+    void DrawDebugMap(Room* currentRoom, float fwdX, float fwdZ, MazeGraph* maze);
 };
 
 #endif
