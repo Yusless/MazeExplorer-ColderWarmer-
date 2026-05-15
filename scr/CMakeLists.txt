@@ -13,6 +13,7 @@ set(SOURCES
     FloorManager.cpp
     Menu.cpp
     Coin.cpp
+    SlotMachine.cpp
 )
 
 add_executable(MazeExplorer ${SOURCES})

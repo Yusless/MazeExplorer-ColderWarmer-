@@ -26,11 +26,11 @@ public:
 
     const std::vector<Coin>& GetCoins() const { return m_coins; }
     std::vector<Coin>& GetCoins() { return m_coins; }
-
     void ClearCoins() { m_coins.clear(); }
 
 private:
     void GenerateCoins();
+    void PlaceSlotMachineRoom();   // <-- ДОБАВИТЬ ЭТУ СТРОКУ
 
     std::unique_ptr<MazeGraph> m_currentMaze;
     int m_width;

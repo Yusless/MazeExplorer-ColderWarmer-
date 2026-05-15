@@ -6,6 +6,8 @@
 #include "Renderer3D.h"
 #include "MinimapRenderer.h"
 #include "Menu.h"
+#include "SlotMachine.h"
+#include <string>
 
 class Game {
 public:
@@ -14,7 +16,7 @@ public:
     void Run();
 
 private:
-    enum GameState { MENU, PLAYING };
+    enum GameState { MENU, PLAYING, SLOT_MACHINE };
     
     void HandleInput();
     void Update();
@@ -22,7 +24,7 @@ private:
     void MoveToRoom(Room* newRoom);
     Direction GetHoveredDoor();
     void StartGame();
-    void AddCoin() { ++m_totalCoins; }
+    void AddCoins(int amount);
 
     FloorManager m_floorManager;
     Room* m_currentRoom;
@@ -30,8 +32,10 @@ private:
     Renderer3D m_renderer3D;
     MinimapRenderer m_minimap;
     Menu m_menu;
+    SlotMachine m_slotMachine;
     
     GameState m_state;
+    
     Music m_music;
     bool m_musicLoaded;
     bool m_musicStarted;
@@ -40,6 +44,10 @@ private:
     bool m_coinSoundLoaded;
     
     int m_totalCoins;
+    
+    // Для сообщения об ошибке
+    float m_errorMessageTimer;
+    std::string m_errorMessage;
     
     bool m_showMinimap;
     bool m_showDebug;
