@@ -106,26 +106,35 @@ void Game::HandleInput() {
         
         // 1. Проверка на игровой автомат
         if (m_currentRoom->HasSlotMachine()) {
-            Vector3 slotPos = m_currentRoom->GetWorldPosition();
-            slotPos.y = 0.6f;
-            BoundingBox slotBox = {
-                {slotPos.x - 1.25f, slotPos.y - 0.8f, slotPos.z - 1.0f},
-                {slotPos.x + 1.25f, slotPos.y + 0.8f, slotPos.z + 1.0f}
-            };
-            if (GetRayCollisionBox(ray, slotBox).hit) {
-                // Проверка на наличие монет
-                if (m_totalCoins <= 0) {
-                    m_errorMessage = "NOT ENOUGH COINS! GET A JOB!";
-                    m_errorMessageTimer = 5.0f;
-                    return;
-                }
-                std::cout << "Slot machine activated!" << std::endl;
-                m_slotMachine.Start(m_totalCoins);
-                m_state = SLOT_MACHINE;
-                EnableCursor();
-                return;
-            }
+    // Параметры автомата (должны совпадать с отрисовкой в Renderer3D)
+    const float machineWidth = 2.4f;
+    const float machineHeight = 1.9f;
+    const float machineDepth = 1.6f;
+    const float halfRoom = Constants::ROOM_SIZE / 2.0f;  // = 4.0f
+    Vector3 roomPos = m_currentRoom->GetWorldPosition();
+    // Позиция автомата: прислонён к северной стене (Z = roomPos.z - halfRoom + machineDepth/2)
+    Vector3 machineCenter = {
+        roomPos.x,
+        machineHeight / 2.0f,
+        roomPos.z - halfRoom + machineDepth / 2.0f
+    };
+    BoundingBox slotBox = {
+        {machineCenter.x - machineWidth/2, machineCenter.y - machineHeight/2, machineCenter.z - machineDepth/2},
+        {machineCenter.x + machineWidth/2, machineCenter.y + machineHeight/2, machineCenter.z + machineDepth/2}
+    };
+    if (GetRayCollisionBox(ray, slotBox).hit) {
+        if (m_totalCoins <= 0) {
+            m_errorMessage = "NOT ENOUGH COINS! GET A JOB!";
+            m_errorMessageTimer = 5.0f;
+            return;
         }
+        std::cout << "Slot machine activated!" << std::endl;
+        m_slotMachine.Start(m_totalCoins);
+        m_state = SLOT_MACHINE;
+        EnableCursor();
+        return;
+    }
+}
         if (m_currentRoom == m_floorManager.GetExitRoom()) {
             if (IsHatchHovered(ray)) {
                 // Переход на следующий этаж
