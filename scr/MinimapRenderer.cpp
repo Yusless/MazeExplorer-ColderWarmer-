@@ -6,7 +6,7 @@
 
 
 void MinimapRenderer::Draw(bool showDebug, Room* currentRoom, float fwdX, float fwdZ, MazeGraph* maze) {
-    if (!maze) return; // если лабиринта нет – ничего не рисуем
+    if (!maze) return;
     if (showDebug)
         DrawDebugMap(currentRoom, fwdX, fwdZ, maze);
     else
@@ -15,7 +15,7 @@ void MinimapRenderer::Draw(bool showDebug, Room* currentRoom, float fwdX, float 
 
 static void MinimapViewDirectionOnGrid(float fwdX, float fwdZ, float& outDirX, float& outDirY) {
     outDirX = fwdX;
-    outDirY = -fwdZ;
+    outDirY = fwdZ;
     float len = sqrtf(outDirX * outDirX + outDirY * outDirY);
     if (len > 1e-6f) {
         outDirX /= len;
@@ -69,11 +69,7 @@ void MinimapRenderer::DrawMinimap(Room* currentRoom, float fwdX, float fwdZ, Maz
     int arrowX = roomX + (int)(arrowDirX * arrowLen);
     int arrowY = roomY + (int)(arrowDirY * arrowLen);
     DrawCircle(roomX, roomY, cellSize / 4, Fade(YELLOW, 0.35f));
-    DrawLine(roomX, roomY, arrowX, arrowY, Fade(WHITE, 0.95f));
-    DrawTriangle({(float)arrowX, (float)arrowY},
-                 {(float)arrowX - arrowDirY * 5.0f, (float)arrowY + arrowDirX * 5.0f},
-                 {(float)arrowX + arrowDirY * 5.0f, (float)arrowY - arrowDirX * 5.0f},
-                 Fade(WHITE, 0.9f));
+    DrawLine(roomX, roomY, arrowX, arrowY, Fade(BLUE, 0.95f));
 }
 
 void MinimapRenderer::DrawDebugMap(Room* currentRoom, float fwdX, float fwdZ, MazeGraph* maze) {

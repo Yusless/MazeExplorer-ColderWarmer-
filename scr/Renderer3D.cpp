@@ -16,7 +16,7 @@ void Renderer3D::DrawRoom(Room* room) {
     floor.Draw();
 
     // Потолок
-    Floor ceiling({pos.x, Constants::WALL_HEIGHT, pos.z}, Constants::ROOM_SIZE, Constants::ROOM_SIZE, DARKGRAY);
+    Floor ceiling({pos.x, Constants::WALL_HEIGHT, pos.z}, - Constants::ROOM_SIZE, Constants::ROOM_SIZE, GRAY);
     ceiling.Draw();
 
     Color wallColor = {80, 80, 100, 255};

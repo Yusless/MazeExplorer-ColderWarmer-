@@ -43,10 +43,9 @@ Game::Game(int mazeWidth, int mazeHeight)
         }
     }
     if (!musicFound) {
-        std::cerr << "Music file not found. Place menu_music.ogg in build/scr/ or assets/ folder." << std::endl;
+        std::cerr << "Music file not found." << std::endl;
     }
     
-    // Загрузка звука монетки (OGG или WAV)
     const char* coinPaths[] = {
         "coin.ogg", "coin.wav",
         "assets/coin.ogg", "assets/coin.wav",
@@ -63,7 +62,7 @@ Game::Game(int mazeWidth, int mazeHeight)
         }
     }
     if (!coinFound) {
-        std::cerr << "Coin sound not found. Place coin.ogg or coin.wav in build/scr/ or assets/ folder." << std::endl;
+        std::cerr << "Coin sound not found." << std::endl;
     }
     
     // Настройка колбэка для автомата
@@ -207,9 +206,6 @@ void Game::HandleInput() {
 void Game::Update() {
     if (m_musicLoaded && IsMusicStreamPlaying(m_music)) {
         UpdateMusicStream(m_music);
-        if (!IsMusicStreamPlaying(m_music)) {
-            std::cout << "Music finished playing" << std::endl;
-        }
     }
     if (m_state == PLAYING) {
         m_camera.Update(m_currentRoom);
@@ -225,21 +221,12 @@ void Game::Draw() {
         m_renderer3D.DrawRoom(m_currentRoom);
         Direction hovered;
         m_renderer3D.DrawDoors(m_currentRoom, m_camera.GetCamera(), hovered);
-        
-        // Отрисовка монеток
+
         for (const auto& coin : m_floorManager.GetCoins()) {
             coin.Draw();
         }
         
-        // Отрисовка старта и выхода
-        Vector3 startPos = m_floorManager.GetStartRoom()->GetWorldPosition();
-        Vector3 exitPos = m_floorManager.GetExitRoom()->GetWorldPosition();
-        DrawSphere(startPos, 0.5f, GREEN);
-        DrawSphere(exitPos, 0.5f, RED);
-        
         EndMode3D();
-        
-        // 2D интерфейс
         int cx = GetScreenWidth()/2, cy = GetScreenHeight()/2;
         DrawCircle(cx, cy, 5, Fade(WHITE, 0.5f));
         DrawCircle(cx, cy, 2, WHITE);
@@ -314,17 +301,6 @@ void Game::MoveToRoom(Room* newRoom) {
         m_camera.SetAngle(newAngle);
         m_camera.SetPitch(0.0f);
         m_camera.Update(m_currentRoom);
-        
-        Vector3 f = m_camera.GetForward();
-        Vector3 flatF = {f.x, 0.0f, f.z};
-        if (Vector3Length(flatF) > 1e-5f) {
-            flatF = Vector3Normalize(flatF);
-            if (Vector3DotProduct(flatF, deltaN) < 0.0f) {
-                newAngle += (float)M_PI;
-                if (newAngle >= TWO_PI) newAngle -= TWO_PI;
-                m_camera.SetAngle(newAngle);
-            }
-        }
     }
     m_camera.SetPitch(0.0f);
     m_camera.Update(m_currentRoom);
