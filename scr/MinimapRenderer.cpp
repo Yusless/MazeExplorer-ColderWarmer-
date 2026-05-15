@@ -13,18 +13,16 @@ void MinimapRenderer::Draw(bool showDebug, Room* currentRoom, float fwdX, float 
         DrawMinimap(currentRoom, fwdX, fwdZ, maze);
 }
 
-static void MinimapViewDirectionOnGrid(float fwdX, float fwdZ, float& outDirX, float& outDirY) {
-    outDirX = fwdX;
-    outDirY = fwdZ;
-    float len = sqrtf(outDirX * outDirX + outDirY * outDirY);
+static void MinimapViewDirectionOnGrid(float fwdX, float fwdZ) {
+    float len = sqrtf(fwdX * fwdX + fwdZ * fwdZ);
     if (len > 1e-6f) {
-        outDirX /= len;
-        outDirY /= len;
+        fwdX /= len;
+        fwdZ /= len;
     }
 }
 
 void MinimapRenderer::DrawMinimap(Room* currentRoom, float fwdX, float fwdZ, MazeGraph* maze) {
-    int mapSize = 200;
+    int mapSize = 250;
     int cellSize = mapSize / std::max(maze->GetWidth(), maze->GetHeight());
     int mapX = GetScreenWidth() - mapSize - 30;
     int mapY = 70;
@@ -63,11 +61,10 @@ void MinimapRenderer::DrawMinimap(Room* currentRoom, float fwdX, float fwdZ, Maz
     // Направление взгляда
     int roomX = mapX + currentRoom->GetGridX() * cellSize + cellSize/2;
     int roomY = mapY + currentRoom->GetGridY() * cellSize + cellSize/2;
-    float arrowDirX = 0.0f, arrowDirY = 0.0f;
-    MinimapViewDirectionOnGrid(fwdX, fwdZ, arrowDirX, arrowDirY);
+    MinimapViewDirectionOnGrid(fwdX, fwdZ);
     int arrowLen = cellSize * 3 / 5;
-    int arrowX = roomX + (int)(arrowDirX * arrowLen);
-    int arrowY = roomY + (int)(arrowDirY * arrowLen);
+    int arrowX = roomX + (int)(fwdX * arrowLen);
+    int arrowY = roomY + (int)(fwdZ * arrowLen);
     DrawCircle(roomX, roomY, cellSize / 4, Fade(YELLOW, 0.35f));
     DrawLine(roomX, roomY, arrowX, arrowY, Fade(BLUE, 0.95f));
 }
@@ -108,15 +105,10 @@ void MinimapRenderer::DrawDebugMap(Room* currentRoom, float fwdX, float fwdZ, Ma
     // Направление взгляда
     int roomX = mapX + currentRoom->GetGridX() * cellSize + cellSize/2;
     int roomY = mapY + currentRoom->GetGridY() * cellSize + cellSize/2;
-    float arrowDirX = 0.0f, arrowDirY = 0.0f;
-    MinimapViewDirectionOnGrid(fwdX, fwdZ, arrowDirX, arrowDirY);
+    MinimapViewDirectionOnGrid(fwdX, fwdZ);
     int arrowLen = cellSize * 3 / 5;
-    int arrowX = roomX + (int)(arrowDirX * arrowLen);
-    int arrowY = roomY + (int)(arrowDirY * arrowLen);
+    int arrowX = roomX + (int)(fwdX * arrowLen);
+    int arrowY = roomY + (int)(fwdZ * arrowLen);
     DrawCircle(roomX, roomY, cellSize / 4, Fade(YELLOW, 0.35f));
-    DrawLine(roomX, roomY, arrowX, arrowY, Fade(WHITE, 0.95f));
-    DrawTriangle({(float)arrowX, (float)arrowY},
-                 {(float)arrowX - arrowDirY * 5.0f, (float)arrowY + arrowDirX * 5.0f},
-                 {(float)arrowX + arrowDirY * 5.0f, (float)arrowY - arrowDirX * 5.0f},
-                 Fade(WHITE, 0.9f));
+    DrawLine(roomX, roomY, arrowX, arrowY, Fade(BLUE, 0.95f));
 }
