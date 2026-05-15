@@ -9,7 +9,7 @@ Game::Game(int mazeWidth, int mazeHeight)
     : m_floorManager(mazeWidth, mazeHeight),
       m_state(MENU),
       m_musicLoaded(false), m_musicStarted(false),
-      m_coinSoundLoaded(false), m_totalCoins(0),
+      m_coinSoundLoaded(false), m_totalCoins(100),
       m_errorMessageTimer(0.0f),
       m_showMinimap(true), m_showDebug(false), m_devMode(true)
 {
@@ -268,7 +268,6 @@ void Game::Draw() {
             DrawText(m_errorMessage.c_str(), GetScreenWidth()/2 - tw/2, GetScreenHeight()/2 - 50, 25, RED);
         }
         
-        // Подсказка, если в комнате есть автомат
         if (m_currentRoom->HasSlotMachine()) {
             const char* msg = "Press LEFT CLICK on the machine to play SLOT!";
             int tw = MeasureText(msg, 20);

@@ -12,7 +12,7 @@ namespace Constants {
     constexpr int SCREEN_HEIGHT = 720;
     constexpr float MOUSE_SENSITIVITY = 0.003f;
     constexpr float CAMERA_PITCH_MAX = 0.8f;
-    constexpr float CAMERA_PITCH_MIN = -0.5f;
+    constexpr float CAMERA_PITCH_MIN = -1.0f;
 }
 
 #endif

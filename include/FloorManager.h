@@ -8,7 +8,7 @@
 
 class FloorManager {
 public:
-    FloorManager(int width, int height);
+    FloorManager(int minSize = 5, int maxSize = 15);
     ~FloorManager() = default;
 
     void GenerateFirstFloor();
@@ -36,6 +36,8 @@ private:
     int m_width;
     int m_height;
     int m_currentFloor;
+    int m_minSize;
+    int m_maxSize;
     std::vector<Coin> m_coins;
 };
 

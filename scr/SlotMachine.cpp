@@ -14,7 +14,8 @@ SlotMachine::SlotMachine()
       m_spinStartTime(0),
       m_spinDuration(1.5f),
       m_spinning(false),
-      m_animationTimer(0)
+      m_animationTimer(0),
+      coins_are_given(false)
 {
     std::srand(std::time(nullptr));
     m_reels.resize(3, SlotSymbol::COIN);
@@ -109,8 +110,14 @@ void SlotMachine::Update() {
 
     // 4. Результат
     if (m_spinState == 3) {
-        ApplyResult();
-        m_spinState = 4;
+        if (!coins_are_given) {
+            ApplyResult();
+            coins_are_given = true;
+        }
+        if (IsKeyPressed(KEY_SPACE)) {
+            m_spinState = 4;
+            coins_are_given = false;
+        }
         return;
     }
 
@@ -136,19 +143,13 @@ SlotSymbol SlotMachine::RandomSymbol() {
 }
 
 void SlotMachine::ApplyResult() {
-    bool allCoins = true;
-    for (int i = 0; i < 3; ++i) {
-        if (m_reels[i] != SlotSymbol::COIN) {
-            allCoins = false;
-            break;
-        }
-    }
-    if (allCoins) {
+    bool allCoins = (m_reels[0] == SlotSymbol::COIN && m_reels[1] == SlotSymbol::COIN && m_reels[2] == SlotSymbol::COIN);
+    bool allRedCircles = (m_reels[0] == SlotSymbol::RED_CIRCLE && m_reels[1] == SlotSymbol::RED_CIRCLE && m_reels[2] == SlotSymbol::RED_CIRCLE);
+    bool allRedCrosses = (m_reels[0] == SlotSymbol::RED_CROSS && m_reels[1] == SlotSymbol::RED_CROSS && m_reels[2] == SlotSymbol::RED_CROSS);
+
+    if (allCoins || allRedCircles || allRedCrosses) {
         int win = m_stake * 2;
-        if (m_addCoinsCallback) m_addCoinsCallback(win);
-        std::cout << "You won " << win << " coins!" << std::endl;
-    } else {
-        std::cout << "You lost " << m_stake << " coins!" << std::endl;
+         m_addCoinsCallback(win);
     }
 }
 
@@ -166,7 +167,7 @@ void SlotMachine::Draw() {
         DrawRectangle(cx - 100, cy, 200, 40, LIGHTGRAY);
         DrawText(m_stakeInput, cx - 90, cy + 10, 30, BLACK);
         DrawText("Press ENTER to confirm", cx - 130, cy + 70, 20, GRAY);
-        if (m_stake > m_playerCoins && m_stakeInputLen > 0) {
+        if (m_stake > m_playerCoins && m_stakeInputLen == 0) {
             DrawText("Not enough coins!", cx - 100, cy + 120, 20, RED);
         }
     } else if (m_spinState == 1) {
@@ -197,8 +198,11 @@ void SlotMachine::Draw() {
             DrawText("Press SPACE to stop each reel", cx - 150, cy + 100, 20, WHITE);
         } else {
             bool allCoins = (m_reels[0] == SlotSymbol::COIN && m_reels[1] == SlotSymbol::COIN && m_reels[2] == SlotSymbol::COIN);
+            bool allRedCircles = (m_reels[0] == SlotSymbol::RED_CIRCLE && m_reels[1] == SlotSymbol::RED_CIRCLE && m_reels[2] == SlotSymbol::RED_CIRCLE);
+            bool allRedCrosses = (m_reels[0] == SlotSymbol::RED_CROSS && m_reels[1] == SlotSymbol::RED_CROSS && m_reels[2] == SlotSymbol::RED_CROSS);
+            
             DrawText("RESULT", cx - 40, cy - 120, 40, YELLOW);
-            if (allCoins) {
+            if (allCoins || allRedCircles || allRedCrosses) {
                 DrawText(TextFormat("YOU WIN %d!", m_stake * 2), cx - 100, cy + 120, 30, GREEN);
             } else {
                 DrawText("YOU LOSE!", cx - 80, cy + 120, 30, RED);

@@ -1,10 +1,18 @@
 #include "FloorManager.h"
 #include <iostream>
 #include <random>
+#include <ctime>
 #include <algorithm>
 
-FloorManager::FloorManager(int width, int height)
-    : m_width(width), m_height(height), m_currentFloor(0) {}
+FloorManager::FloorManager(int minSize, int maxSize) :
+    m_currentFloor(0),
+    m_minSize(minSize),
+    m_maxSize(maxSize),
+    m_width(minSize),
+    m_height(minSize) {
+
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+    }
 
 void FloorManager::GenerateFirstFloor() {
     m_currentFloor = 1;
@@ -17,19 +25,22 @@ void FloorManager::GenerateFirstFloor() {
 
 void FloorManager::NextFloor() {
     ++m_currentFloor;
+    m_width = m_minSize + std::rand() % (m_maxSize - m_minSize + 1);
+    m_height = m_minSize + std::rand() % (m_maxSize - m_minSize + 1);
     m_currentMaze = std::make_unique<MazeGraph>(m_width, m_height);
     m_currentMaze->Generate();
     GenerateCoins();
     PlaceSlotMachineRoom();
-    std::cout << "=== Moved to floor " << m_currentFloor << " ===" << std::endl;
+    std::cout << "=== Moved to floor " << m_width << m_height << " ===" << std::endl;
 }
 
 void FloorManager::GenerateCoins() {
     m_coins.clear();
-    int numCoins = (m_width * m_height) / 2;  // побольше монеток
-    if (numCoins < 6) numCoins = 6;
 
-    std::cout << "Generating " << numCoins << " coins on floor " << m_currentFloor << std::endl;
+    int coinCount = m_currentFloor * (m_width * m_height) / 4;
+    coinCount = std::max(5, std::min(coinCount, 50));
+
+    std::cout << "Generating " << coinCount << " coins on floor " << m_currentFloor << std::endl;
 
     std::uniform_int_distribution<int> distX(0, m_width - 1);
     std::uniform_int_distribution<int> distZ(0, m_height - 1);
@@ -37,11 +48,10 @@ void FloorManager::GenerateCoins() {
     std::mt19937 gen(std::random_device{}());
 
     int generated = 0;
-    for (int i = 0; i < numCoins; ++i) {
+    for (int i = 0; i < coinCount; ++i) {
         int x = distX(gen);
         int z = distZ(gen);
         Room* room = m_currentMaze->GetRoom(x, z);
-        // Не кладём монетки в комнату с автоматом
         if (room && !room->HasSlotMachine()) {
             float offsetX = distOffset(gen);
             float offsetZ = distOffset(gen);
@@ -57,7 +67,6 @@ void FloorManager::GenerateCoins() {
 }
 
 void FloorManager::PlaceSlotMachineRoom() {
-    // Сбросить все флаги
     for (int y = 0; y < m_height; ++y) {
         for (int x = 0; x < m_width; ++x) {
             Room* r = m_currentMaze->GetRoom(x, y);

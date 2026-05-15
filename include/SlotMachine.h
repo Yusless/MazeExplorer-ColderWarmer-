@@ -33,6 +33,7 @@ private:
     std::vector<SlotSymbol> m_targetReels;               // финальные символы (после остановки)
     bool m_spinning;
     float m_animationTimer;
+    bool coins_are_given;
     
     std::function<void(int)> m_addCoinsCallback;
     
