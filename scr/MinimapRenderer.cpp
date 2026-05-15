@@ -50,45 +50,48 @@ void MinimapRenderer::DrawMinimap(Room* currentRoom, float fwdX, float fwdZ, Maz
         }
     }
     
-    // ========== РИСУЕМ ДВЕРИ ТОЛЬКО ДЛЯ ТЕКУЩЕЙ КОМНАТЫ ==========
-    int cx = mapX + currentRoom->GetGridX() * cellSize + cellSize/2;
-    int cy = mapY + currentRoom->GetGridY() * cellSize + cellSize/2;
-    int x0 = mapX + currentRoom->GetGridX() * cellSize;
-    int y0 = mapY + currentRoom->GetGridY() * cellSize;
-    Color doorColor = ORANGE;
-    float thickness = 3.0f;
-    int doorLen = 12; // длинная палочка
-    
-    // Отладочный вывод в консоль (один раз, чтобы проверить)
-    static bool once = true;
-    if (once) {
-        std::cout << "Current room doors: N=" << currentRoom->HasDoor(Direction::NORTH)
-                  << " S=" << currentRoom->HasDoor(Direction::SOUTH)
-                  << " E=" << currentRoom->HasDoor(Direction::EAST)
-                  << " W=" << currentRoom->HasDoor(Direction::WEST) << std::endl;
-        once = false;
+    // ========== РИСУЕМ ДВЕРИ ДЛЯ ТЕКУЩЕЙ И ВСЕХ ИССЛЕДОВАННЫХ КОМНАТ ==========
+    // Это изменённая часть: теперь двери остаются навсегда
+    for (int y = 0; y < maze->GetHeight(); ++y) {
+        for (int x = 0; x < maze->GetWidth(); ++x) {
+            Room* room = maze->GetRoom(x, y);
+            if (!room) continue;
+            
+            // Рисуем двери, если комната исследована ИЛИ это текущая комната
+            if (room->IsExplored() || room == currentRoom) {
+                int cx = mapX + room->GetGridX() * cellSize + cellSize/2;
+                int cy = mapY + room->GetGridY() * cellSize + cellSize/2;
+                int x0 = mapX + room->GetGridX() * cellSize;
+                int y0 = mapY + room->GetGridY() * cellSize;
+                
+                Color doorColor = ORANGE;
+                float thickness = 3.0f;
+                int doorLen = 12;
+                
+                if (room->HasDoor(Direction::NORTH))
+                    DrawLineEx({(float)cx, (float)y0}, {(float)cx, (float)y0 - doorLen}, thickness, doorColor);
+                if (room->HasDoor(Direction::SOUTH))
+                    DrawLineEx({(float)cx, (float)(y0 + cellSize)}, {(float)cx, (float)(y0 + cellSize + doorLen)}, thickness, doorColor);
+                if (room->HasDoor(Direction::EAST))
+                    DrawLineEx({(float)(x0 + cellSize), (float)cy}, {(float)(x0 + cellSize + doorLen), (float)cy}, thickness, doorColor);
+                if (room->HasDoor(Direction::WEST))
+                    DrawLineEx({(float)x0, (float)cy}, {(float)x0 - doorLen, (float)cy}, thickness, doorColor);
+            }
+        }
     }
     
-    if (currentRoom->HasDoor(Direction::NORTH))
-        DrawLineEx({(float)cx, (float)y0}, {(float)cx, (float)y0 - doorLen}, thickness, doorColor);
-    if (currentRoom->HasDoor(Direction::SOUTH))
-        DrawLineEx({(float)cx, (float)(y0 + cellSize)}, {(float)cx, (float)(y0 + cellSize + doorLen)}, thickness, doorColor);
-    if (currentRoom->HasDoor(Direction::EAST))
-        DrawLineEx({(float)(x0 + cellSize), (float)cy}, {(float)(x0 + cellSize + doorLen), (float)cy}, thickness, doorColor);
-    if (currentRoom->HasDoor(Direction::WEST))
-        DrawLineEx({(float)x0, (float)cy}, {(float)x0 - doorLen, (float)cy}, thickness, doorColor);
-    
     // Стрелка направления (синяя)
+    int roomX = mapX + currentRoom->GetGridX() * cellSize + cellSize/2;
+    int roomY = mapY + currentRoom->GetGridY() * cellSize + cellSize/2;
     MinimapViewDirectionOnGrid(fwdX, fwdZ);
     int arrowLen = cellSize * 3 / 5;
-    int arrowX = cx + (int)(fwdX * arrowLen);
-    int arrowY = cy + (int)(fwdZ * arrowLen);
-    DrawCircle(cx, cy, cellSize / 4, Fade(YELLOW, 0.35f));
-    DrawLine(cx, cy, arrowX, arrowY, Fade(BLUE, 0.95f));
+    int arrowX = roomX + (int)(fwdX * arrowLen);
+    int arrowY = roomY + (int)(fwdZ * arrowLen);
+    DrawCircle(roomX, roomY, cellSize / 4, Fade(YELLOW, 0.35f));
+    DrawLine(roomX, roomY, arrowX, arrowY, Fade(BLUE, 0.95f));
 }
 
 void MinimapRenderer::DrawDebugMap(Room* currentRoom, float fwdX, float fwdZ, MazeGraph* maze) {
-    // Аналогично, но можно оставить как было
     int mapSize = 250;
     int cellSize = mapSize / std::max(maze->GetWidth(), maze->GetHeight());
     int mapX = GetScreenWidth() - mapSize - 30;
@@ -129,6 +132,7 @@ void MinimapRenderer::DrawDebugMap(Room* currentRoom, float fwdX, float fwdZ, Ma
         }
     }
     
+    // Направление взгляда
     int roomX = mapX + currentRoom->GetGridX() * cellSize + cellSize/2;
     int roomY = mapY + currentRoom->GetGridY() * cellSize + cellSize/2;
     MinimapViewDirectionOnGrid(fwdX, fwdZ);
