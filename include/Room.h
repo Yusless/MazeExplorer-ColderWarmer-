@@ -24,6 +24,7 @@ public:
     int GetId() const { return id; }
     bool IsExplored() const { return explored; }
     void SetExplored(bool e) { explored = e; }
+    bool IsExit() const {return Exit; }
     
     // --- Новые методы для игрового автомата ---
     bool HasSlotMachine() const { return hasSlotMachine; }
@@ -34,8 +35,9 @@ public:
     int gridX, gridY;
     Vector3 worldPosition;
     bool explored;
-    bool hasDoor[4];
     Room* neighbors[4];
+    bool hasDoor[4];
+    bool Exit;
     
 private:
     bool hasSlotMachine;   // флаг: есть ли в комнате автомат

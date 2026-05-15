@@ -57,6 +57,8 @@ void MazeGraph::Generate() {
     
     m_startRoom = &m_rooms[0][0];
     m_exitRoom = &m_rooms[m_height-1][m_width-1];
+    m_exitRoom->Exit = true;
+    
     std::cout << "Maze generated: " << m_width << "x" << m_height << std::endl;
 }
 

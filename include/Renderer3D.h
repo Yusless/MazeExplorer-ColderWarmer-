@@ -16,6 +16,7 @@ private:
     void DrawWall(Vector3 pos, Vector3 size, Color color);
     void DrawFloor(Vector3 center);
     void DrawCeiling(Vector3 center);
+    void DrawHatch(Vector3 roomPos);
 };
 
 #endif

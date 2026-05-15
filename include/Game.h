@@ -25,6 +25,7 @@ private:
     Direction GetHoveredDoor();
     void StartGame();
     void AddCoins(int amount);
+    bool IsHatchHovered(Ray ray);
 
     FloorManager m_floorManager;
     Room* m_currentRoom;

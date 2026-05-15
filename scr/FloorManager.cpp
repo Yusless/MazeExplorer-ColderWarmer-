@@ -16,11 +16,10 @@ FloorManager::FloorManager(int minSize, int maxSize) :
 
 void FloorManager::GenerateFirstFloor() {
     m_currentFloor = 1;
-    m_currentMaze = std::make_unique<MazeGraph>(m_width, m_height);
+    m_currentMaze = std::make_unique<MazeGraph>(5,5);
     m_currentMaze->Generate();
     GenerateCoins();
     PlaceSlotMachineRoom();
-    std::cout << "=== Entering floor " << m_currentFloor << " ===" << std::endl;
 }
 
 void FloorManager::NextFloor() {
@@ -31,16 +30,14 @@ void FloorManager::NextFloor() {
     m_currentMaze->Generate();
     GenerateCoins();
     PlaceSlotMachineRoom();
-    std::cout << "=== Moved to floor " << m_width << m_height << " ===" << std::endl;
 }
 
 void FloorManager::GenerateCoins() {
     m_coins.clear();
 
     int coinCount = m_currentFloor * (m_width * m_height) / 4;
-    coinCount = std::max(5, std::min(coinCount, 50));
+    coinCount = std::max(5, std::min(coinCount, 75));
 
-    std::cout << "Generating " << coinCount << " coins on floor " << m_currentFloor << std::endl;
 
     std::uniform_int_distribution<int> distX(0, m_width - 1);
     std::uniform_int_distribution<int> distZ(0, m_height - 1);
@@ -63,7 +60,6 @@ void FloorManager::GenerateCoins() {
             generated++;
         }
     }
-    std::cout << "Actually placed coins: " << generated << std::endl;
 }
 
 void FloorManager::PlaceSlotMachineRoom() {
@@ -82,10 +78,6 @@ void FloorManager::PlaceSlotMachineRoom() {
                 candidates.push_back(r);
             }
         }
-    }
-    if (candidates.empty()) {
-        std::cerr << "Warning: No suitable room for slot machine!" << std::endl;
-        return;
     }
     static std::mt19937 rng(std::random_device{}());
     std::uniform_int_distribution<int> dist(0, candidates.size() - 1);

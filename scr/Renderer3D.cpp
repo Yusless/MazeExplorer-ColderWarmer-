@@ -15,6 +15,10 @@ void Renderer3D::DrawRoom(Room* room) {
     Floor floor({pos.x, 0.0f, pos.z}, Constants::ROOM_SIZE, Constants::ROOM_SIZE, GRAY);
     floor.Draw();
 
+    if (room->Exit) {
+        DrawHatch(pos);
+    }
+
     // Потолок
     Floor ceiling({pos.x, Constants::WALL_HEIGHT, pos.z}, - Constants::ROOM_SIZE, Constants::ROOM_SIZE, GRAY);
     ceiling.Draw();
@@ -137,4 +141,27 @@ void Renderer3D::DrawDoors(Room* room, const Camera3D& camera, Direction& outHov
     drawDoor(Direction::SOUTH, {pos.x, Constants::DOOR_HEIGHT/2, pos.z + half});
     drawDoor(Direction::EAST,  {pos.x + half, Constants::DOOR_HEIGHT/2, pos.z});
     drawDoor(Direction::WEST,  {pos.x - half, Constants::DOOR_HEIGHT/2, pos.z});
+}
+
+void Renderer3D::DrawHatch(Vector3 roomPos) {
+    float half = Constants::ROOM_SIZE / 2.0f;
+    float offset = 1.2f;
+    Vector3 hatchPos = {
+        roomPos.x + half - offset,
+        0.02f,
+        roomPos.z + half - offset
+    };
+
+    DrawCircle3D(hatchPos, 0.7f, {1, 0, 0}, 90.0f, DARKBROWN);
+
+    DrawCircle3D(hatchPos, 0.72f, {1, 0, 0}, 90.0f, GOLD);
+
+    Vector3 center = hatchPos;
+    center.y += 0.03f;
+    
+    DrawCube(center, 0.5f, 0.05f, 0.08f, YELLOW);
+    DrawCube(center, 0.08f, 0.05f, 0.5f, YELLOW);
+    
+    // Свечение
+    DrawCircle3D(hatchPos, 0.8f, {1, 0, 0}, 90.0f, Fade(YELLOW, 0.25f));
 }

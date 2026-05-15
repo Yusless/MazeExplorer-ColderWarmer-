@@ -1,7 +1,7 @@
 #include "Room.h"
 
 Room::Room() 
-    : id(-1), gridX(-1), gridY(-1), worldPosition{0,0,0}, explored(false) {
+    : id(-1), gridX(-1), gridY(-1), worldPosition{0,0,0}, explored(false), Exit(false) {
     for (int i = 0; i < 4; ++i) {
         hasDoor[i] = false;
         neighbors[i] = nullptr;
@@ -9,7 +9,7 @@ Room::Room()
 }
 
 Room::Room(int x, int y) 
-    : id(-1), gridX(x), gridY(y), worldPosition{x * Constants::ROOM_SIZE, 0.0f, y * Constants::ROOM_SIZE}, explored(false) {
+    : id(-1), gridX(x), gridY(y), worldPosition{x * Constants::ROOM_SIZE, 0.0f, y * Constants::ROOM_SIZE}, explored(false), Exit(false) {
     for (int i = 0; i < 4; ++i) {
         hasDoor[i] = false;
         neighbors[i] = nullptr;

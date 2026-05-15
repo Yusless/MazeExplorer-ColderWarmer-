@@ -3,7 +3,7 @@
 
 int main() {
     try {
-        Game game(5, 10);
+        Game game(2, 10);
         game.Run();
     } catch (const std::exception& e) {
         std::cerr << "Standard exception: " << e.what() << std::endl;
