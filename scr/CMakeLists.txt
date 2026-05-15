@@ -1,7 +1,6 @@
 set(SOURCES
     main.cpp
     Game.cpp
-    InputHandler.cpp
     CameraController.cpp
     Renderer3D.cpp
     MinimapRenderer.cpp
