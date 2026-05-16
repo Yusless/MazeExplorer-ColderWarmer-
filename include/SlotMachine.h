@@ -11,31 +11,35 @@ enum class SlotSymbol { COIN, RED_CROSS, RED_CIRCLE };
 class SlotMachine {
 public:
     SlotMachine();
-    void Start(int playerCoins);                         // запуск мини-игры
-    void Update();                                       // обновление каждый кадр
-    void Draw();                                         // отрисовка 2D-интерфейса
+    void Start(int playerCoins);
+    void Update();
+    void Draw();
     bool IsActive() const { return m_active; }
     void Close() { m_active = false; }
     void SetAddCoinsCallback(std::function<void(int)> callback) { m_addCoinsCallback = callback; }
+    void SetWinSound(Sound sound) { m_winSound = sound; }
+    void SetLoseSound(Sound sound) { m_loseSound = sound; }
 
 private:
     bool m_active;
-    int m_playerCoins;                                   // копия баланса (синхронизируется через callback)
-    int m_stake;                                         // текущая ставка
+    int m_playerCoins;
+    int m_stake;
     bool m_waitingForStake;
     char m_stakeInput[16];
     int m_stakeInputLen;
-    int m_spinState; // 0=ожидание ставки, 1=спин разрешён, 2=вращаем барабаны, 3=ждём остановку, 4=показ результата
-    int m_currentReel;                                   // какой барабан останавливаем (0,1,2)
+    int m_spinState;
+    int m_currentReel;
     float m_spinStartTime;
     float m_spinDuration;
-    std::vector<SlotSymbol> m_reels;                     // текущие отображаемые символы (для анимации)
-    std::vector<SlotSymbol> m_targetReels;               // финальные символы (после остановки)
+    std::vector<SlotSymbol> m_reels;
+    std::vector<SlotSymbol> m_targetReels;
     bool m_spinning;
     float m_animationTimer;
     bool coins_are_given;
     
     std::function<void(int)> m_addCoinsCallback;
+    Sound m_winSound;
+    Sound m_loseSound;
     
     void GenerateRandomTargets();
     SlotSymbol RandomSymbol();

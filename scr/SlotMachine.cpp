@@ -142,6 +142,7 @@ SlotSymbol SlotMachine::RandomSymbol() {
     return SlotSymbol::RED_CIRCLE;
 }
 
+// ========== ИЗМЕНЁННАЯ ФУНКЦИЯ С ПРОИГРЫВАНИЕМ ЗВУКОВ ==========
 void SlotMachine::ApplyResult() {
     bool allCoins = (m_reels[0] == SlotSymbol::COIN && m_reels[1] == SlotSymbol::COIN && m_reels[2] == SlotSymbol::COIN);
     bool allRedCircles = (m_reels[0] == SlotSymbol::RED_CIRCLE && m_reels[1] == SlotSymbol::RED_CIRCLE && m_reels[2] == SlotSymbol::RED_CIRCLE);
@@ -149,9 +150,13 @@ void SlotMachine::ApplyResult() {
 
     if (allCoins || allRedCircles || allRedCrosses) {
         int win = m_stake * 2;
-         m_addCoinsCallback(win);
+        if (m_addCoinsCallback) m_addCoinsCallback(win);
+        PlaySound(m_winSound);
+    } else {
+        PlaySound(m_loseSound);
     }
 }
+// =============================================================
 
 void SlotMachine::Draw() {
     if (!m_active) return;

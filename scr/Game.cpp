@@ -9,7 +9,10 @@ Game::Game(int minSize, int maxSize)
     : m_floorManager(minSize, maxSize),
       m_state(MENU),
       m_musicLoaded(false), m_musicStarted(false),
-      m_coinSoundLoaded(false), m_totalCoins(0),
+      m_coinSoundLoaded(false),
+      m_winSoundLoaded(false), m_loseSoundLoaded(false),
+      m_doorSoundLoaded(false),
+      m_totalCoins(0),
       m_errorMessageTimer(0.0f),
       m_showMinimap(true), m_showDebug(false), m_devMode(true)
 {
@@ -23,7 +26,7 @@ Game::Game(int minSize, int maxSize)
         std::cout << "Audio device initialized successfully" << std::endl;
     }
     
-    // Загрузка музыки меню (без зацикливания)
+    // Загрузка музыки меню
     m_music = LoadMusicStream("../resources/menu_music.ogg");
     if (m_music.stream.buffer != nullptr) {
         m_musicLoaded = true;
@@ -32,7 +35,7 @@ Game::Game(int minSize, int maxSize)
         m_musicLoaded = false;
     }
     
-    // Загрузка звука монет
+    // Звук монет
     m_coinSound = LoadSound("../resources/coin.ogg");
     if (m_coinSound.stream.buffer != nullptr) {
         m_coinSoundLoaded = true;
@@ -40,12 +43,41 @@ Game::Game(int minSize, int maxSize)
         m_coinSoundLoaded = false;
     }
     
+    // ========== НОВЫЕ ЗВУКИ ДЛЯ АВТОМАТА ==========
+    m_winSound = LoadSound("../resources/win.ogg");
+    if (m_winSound.stream.buffer != nullptr) {
+        m_winSoundLoaded = true;
+    } else {
+        m_winSoundLoaded = false;
+        std::cerr << "Failed to load win sound" << std::endl;
+    }
+    
+    m_loseSound = LoadSound("../resources/lose.ogg");
+    if (m_loseSound.stream.buffer != nullptr) {
+        m_loseSoundLoaded = true;
+    } else {
+        m_loseSoundLoaded = false;
+        std::cerr << "Failed to load lose sound" << std::endl;
+    }
+    // ==============================================
+    m_doorSound = LoadSound("../resources/door.ogg");
+if (m_doorSound.stream.buffer != nullptr) {
+    m_doorSoundLoaded = true;
+} else {
+    m_doorSoundLoaded = false;
+    std::cerr << "Failed to load door sound" << std::endl;
+}
     m_slotMachine.SetAddCoinsCallback([this](int amount) { AddCoins(amount); });
+    m_slotMachine.SetWinSound(m_winSound);
+    m_slotMachine.SetLoseSound(m_loseSound);
 }
 
 Game::~Game() {
     if (m_musicLoaded) UnloadMusicStream(m_music);
     if (m_coinSoundLoaded) UnloadSound(m_coinSound);
+    if (m_winSoundLoaded) UnloadSound(m_winSound);
+    if (m_loseSoundLoaded) UnloadSound(m_loseSound);
+    if (m_doorSoundLoaded) UnloadSound(m_doorSound);
     CloseAudioDevice();
     CloseWindow();
 }
@@ -149,23 +181,24 @@ void Game::HandleInput() {
     }
 }
         if (m_currentRoom == m_floorManager.GetExitRoom()) {
-            if (IsHatchHovered(ray)) {
-                // Переход на следующий этаж
-                m_floorManager.NextFloor();
-                m_currentRoom = m_floorManager.GetStartRoom();
-                m_currentRoom->SetExplored(true);
-                m_camera.SetAngle(0.0f);
-                m_camera.SetPitch(0.0f);
-                m_camera.Update(m_currentRoom);
-                std::cout << "=== Entered floor " << m_floorManager.GetCurrentFloor() << " ===" << std::endl;
-                return;
-            }
-        }
+    if (IsHatchHovered(ray)) {
+        PlayLevelUpSound();   // Звук перехода этажа
+        m_floorManager.NextFloor();
+        m_currentRoom = m_floorManager.GetStartRoom();
+        m_currentRoom->SetExplored(true);
+        m_camera.SetAngle(0.0f);
+        m_camera.SetPitch(0.0f);
+        m_camera.Update(m_currentRoom);
+        std::cout << "=== Entered floor " << m_floorManager.GetCurrentFloor() << " ===" << std::endl;
+        return;
+    }
+}
         // 2. Проверка на дверь
         Direction door = GetHoveredDoor();
         if (door != Direction::NONE) {
             Room* next = m_currentRoom->GetNeighbor(door);
             if (next) {
+                PlaySound(m_doorSound);
                 MoveToRoom(next);
             }
         } 
@@ -274,6 +307,15 @@ void Game::AddCoins(int amount) {
     if (m_totalCoins < 0) m_totalCoins = 0;
     std::cout << "Coins updated: " << m_totalCoins << std::endl;
 }
+
+void Game::PlayLevelUpSound() {
+    if (m_musicLoaded) {
+        StopMusicStream(m_music);          // останавливаем текущее воспроизведение, если играет
+        SeekMusicStream(m_music, 0.0f);    // перематываем на начало
+        PlayMusicStream(m_music);          // запускаем заново
+    }
+}
+
 bool Game::IsHatchHovered(Ray ray) {
     float half = Constants::ROOM_SIZE / 2.0f;
     float offset = 1.2f;

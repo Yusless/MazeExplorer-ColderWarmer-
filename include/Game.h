@@ -17,7 +17,7 @@ public:
 
 private:
     enum GameState { MENU, PLAYING, SLOT_MACHINE };
-    
+    void PlayLevelUpSound();
     void HandleInput();
     void Update();
     void Draw();
@@ -40,10 +40,14 @@ private:
     Music m_music;
     bool m_musicLoaded;
     bool m_musicStarted;
-    
+    Sound m_doorSound;
+    bool m_doorSoundLoaded;
     Sound m_coinSound;
     bool m_coinSoundLoaded;
-    
+    Sound m_winSound;
+    Sound m_loseSound;
+    bool m_winSoundLoaded;
+    bool m_loseSoundLoaded;
     int m_totalCoins;
     
     // Для сообщения об ошибке
