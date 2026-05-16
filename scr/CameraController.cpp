@@ -18,13 +18,6 @@ void CameraController::Update(Room* currentRoom) {
 }
 
 void CameraController::HandleMouseInput(Vector2 mouseDelta) {
-    if (mouseDelta.x != 0 || mouseDelta.y != 0) {
-        static int counter = 0;
-        if (counter++ % 60 == 0) {
-            std::cout << "CameraController received delta: " << mouseDelta.x << ", " << mouseDelta.y << std::endl;
-            std::cout << "Angle before: " << angle << std::endl;
-        }
-    }
     
     angle -= mouseDelta.x * Constants::MOUSE_SENSITIVITY;
     pitch -= mouseDelta.y * Constants::MOUSE_SENSITIVITY;
@@ -35,13 +28,6 @@ void CameraController::HandleMouseInput(Vector2 mouseDelta) {
     
     if (pitch > Constants::CAMERA_PITCH_MAX) pitch = Constants::CAMERA_PITCH_MAX;
     if (pitch < Constants::CAMERA_PITCH_MIN) pitch = Constants::CAMERA_PITCH_MIN;
-    
-    if (mouseDelta.x != 0 || mouseDelta.y != 0) {
-        static int counter2 = 0;
-        if (counter2++ % 60 == 0) {
-            std::cout << "Angle after: " << angle << std::endl;
-        }
-    }
 }
 
 void CameraController::SetPosition(Vector3 position) {
