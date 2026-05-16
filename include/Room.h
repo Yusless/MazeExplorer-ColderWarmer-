@@ -24,13 +24,14 @@ public:
     int GetId() const { return id; }
     bool IsExplored() const { return explored; }
     void SetExplored(bool e) { explored = e; }
-    bool IsExit() const {return Exit; }
+    bool IsExit() const { return Exit; }
     
-    // --- Новые методы для игрового автомата ---
     bool HasSlotMachine() const { return hasSlotMachine; }
     void SetSlotMachine(bool value) { hasSlotMachine = value; }
+    Direction GetSlotMachineWall() const { return slotMachineWall; }
+    void SetSlotMachineWall(Direction wall) { slotMachineWall = wall; }
     
-    // Публичные поля (оставлены для обратной совместимости)
+    // Публичные поля для обратной совместимости
     int id;
     int gridX, gridY;
     Vector3 worldPosition;
@@ -40,7 +41,8 @@ public:
     bool Exit;
     
 private:
-    bool hasSlotMachine;   // флаг: есть ли в комнате автомат
+    bool hasSlotMachine;
+    Direction slotMachineWall;
 };
 
 #endif

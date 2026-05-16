@@ -2,7 +2,7 @@
 #include <raylib.h>
 #include <algorithm>
 #include <cmath>
-#include <iostream> // для отладки
+#include <iostream>
 
 void MinimapRenderer::Draw(bool showDebug, Room* currentRoom, float fwdX, float fwdZ, MazeGraph* maze) {
     if (!maze) return;
@@ -51,7 +51,6 @@ void MinimapRenderer::DrawMinimap(Room* currentRoom, float fwdX, float fwdZ, Maz
     }
     
     // ========== РИСУЕМ ДВЕРИ ДЛЯ ТЕКУЩЕЙ И ВСЕХ ИССЛЕДОВАННЫХ КОМНАТ ==========
-    // Это изменённая часть: теперь двери остаются навсегда
     for (int y = 0; y < maze->GetHeight(); ++y) {
         for (int x = 0; x < maze->GetWidth(); ++x) {
             Room* room = maze->GetRoom(x, y);

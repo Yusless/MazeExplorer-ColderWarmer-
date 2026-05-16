@@ -5,6 +5,7 @@
 #include <vector>
 #include "MazeGraph.h"
 #include "Coin.h"
+#include "Room.h"
 
 class FloorManager {
 public:
