@@ -8,7 +8,7 @@
 Game::Game(int minSize, int maxSize)
     : m_floorManager(minSize, maxSize),
       m_state(MENU),
-      m_musicLoaded(false), m_musicStarted(false),
+      m_musicLoaded(false),
       m_coinSoundLoaded(false),
       m_winSoundLoaded(false), m_loseSoundLoaded(false),
       m_doorSoundLoaded(false),
@@ -19,61 +19,16 @@ Game::Game(int minSize, int maxSize)
     InitWindow(Constants::SCREEN_WIDTH, Constants::SCREEN_HEIGHT, "Maze Explorer");
     InitAudioDevice();
     SetTargetFPS(60);
-    
-    if (!IsAudioDeviceReady()) {
-        std::cerr << "ERROR: Failed to initialize audio device!" << std::endl;
-    } else {
-        std::cout << "Audio device initialized successfully" << std::endl;
-    }
-    
-    // Загрузка музыки меню
-    m_music = LoadMusicStream("../resources/menu_music.ogg");
-    if (m_music.stream.buffer != nullptr) {
-        m_musicLoaded = true;
-        m_music.looping = false;
-    } else {
-        m_musicLoaded = false;
-    }
-    
-    // Звук монет
-    m_coinSound = LoadSound("../resources/coin.ogg");
-    if (m_coinSound.stream.buffer != nullptr) {
-        m_coinSoundLoaded = true;
-    } else {
-        m_coinSoundLoaded = false;
-    }
-    
-    // ========== НОВЫЕ ЗВУКИ ДЛЯ АВТОМАТА ==========
-    m_winSound = LoadSound("../resources/win.ogg");
-    if (m_winSound.stream.buffer != nullptr) {
-        m_winSoundLoaded = true;
-    } else {
-        m_winSoundLoaded = false;
-        std::cerr << "Failed to load win sound" << std::endl;
-    }
-    
-    m_loseSound = LoadSound("../resources/lose.ogg");
-    if (m_loseSound.stream.buffer != nullptr) {
-        m_loseSoundLoaded = true;
-    } else {
-        m_loseSoundLoaded = false;
-        std::cerr << "Failed to load lose sound" << std::endl;
-    }
-    // ==============================================
-    m_doorSound = LoadSound("../resources/door.ogg");
-if (m_doorSound.stream.buffer != nullptr) {
-    m_doorSoundLoaded = true;
-} else {
-    m_doorSoundLoaded = false;
-    std::cerr << "Failed to load door sound" << std::endl;
-}
+
+    LoadSounds();
+
     m_slotMachine.SetAddCoinsCallback([this](int amount) { AddCoins(amount); });
     m_slotMachine.SetWinSound(m_winSound);
     m_slotMachine.SetLoseSound(m_loseSound);
 }
 
 Game::~Game() {
-    if (m_musicLoaded) UnloadMusicStream(m_music);
+    if (m_musicLoaded) UnloadSound(m_music);
     if (m_coinSoundLoaded) UnloadSound(m_coinSound);
     if (m_winSoundLoaded) UnloadSound(m_winSound);
     if (m_loseSoundLoaded) UnloadSound(m_loseSound);
@@ -86,9 +41,6 @@ void Game::Run() {
     while (!WindowShouldClose()) {
         if (m_state == MENU) {
             m_menu.Update();
-            if (m_musicLoaded && IsMusicStreamPlaying(m_music)) {
-                UpdateMusicStream(m_music);
-            }
             BeginDrawing();
             m_menu.Draw();
             EndDrawing();
@@ -107,7 +59,7 @@ void Game::Run() {
                 DisableCursor();
             }
         }
-        else { // PLAYING
+        else {
             HandleInput();
             Update();
             Draw();
@@ -123,11 +75,8 @@ void Game::StartGame() {
     m_floorManager.GenerateFirstFloor();
     m_currentRoom = m_floorManager.GetStartRoom();
     m_currentRoom->SetExplored(true);
-    
-    if (m_musicLoaded && !m_musicStarted) {
-        PlayMusicStream(m_music);
-        m_musicStarted = true;
-    }
+    PlaySound(m_music);
+
 }
 
 void Game::HandleInput() {
@@ -136,73 +85,44 @@ void Game::HandleInput() {
     
     if (IsKeyPressed(KEY_M)) {
         m_showMinimap = !m_showMinimap;
-        std::cout << "Minimap: " << (m_showMinimap ? "ON" : "OFF") << std::endl;
-    }
-    if (IsKeyPressed(KEY_F1)) {
-        m_showDebug = !m_showDebug;
-        std::cout << "Debug: " << (m_showDebug ? "ON" : "OFF") << std::endl;
-    }
-    if (IsKeyPressed(KEY_P)) {
-        m_floorManager.PrintGraph();
     }
     
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         Ray ray = GetMouseRay({GetScreenWidth()/2.0f, GetScreenHeight()/2.0f}, m_camera.GetCamera());
         
-        // 1. Проверка на игровой автомат
         if (m_currentRoom->HasSlotMachine()) {
-    // Параметры автомата (должны совпадать с отрисовкой в Renderer3D)
-    const float machineWidth = 2.4f;
-    const float machineHeight = 1.9f;
-    const float machineDepth = 1.6f;
-    const float halfRoom = Constants::ROOM_SIZE / 2.0f;  // = 4.0f
-    Vector3 roomPos = m_currentRoom->GetWorldPosition();
-    // Позиция автомата: прислонён к северной стене (Z = roomPos.z - halfRoom + machineDepth/2)
-    Vector3 machineCenter = {
-        roomPos.x,
-        machineHeight / 2.0f,
-        roomPos.z - halfRoom + machineDepth / 2.0f
-    };
-    BoundingBox slotBox = {
-        {machineCenter.x - machineWidth/2, machineCenter.y - machineHeight/2, machineCenter.z - machineDepth/2},
-        {machineCenter.x + machineWidth/2, machineCenter.y + machineHeight/2, machineCenter.z + machineDepth/2}
-    };
-    if (GetRayCollisionBox(ray, slotBox).hit) {
-        if (m_totalCoins <= 0) {
-            m_errorMessage = "NOT ENOUGH COINS! GET A JOB!";
-            m_errorMessageTimer = 5.0f;
-            return;
-        }
-        std::cout << "Slot machine activated!" << std::endl;
-        m_slotMachine.Start(m_totalCoins);
-        m_state = SLOT_MACHINE;
-        EnableCursor();
-        return;
-    }
-}
+            if (IsHittingMachine(ray)) {
+                if (m_totalCoins <= 0) {
+                    m_errorMessage = "NOT ENOUGH COINS! GET A JOB!";
+                    m_errorMessageTimer = 5.0f;
+                    return;
+                    }
+                m_slotMachine.Start(m_totalCoins);
+                m_state = SLOT_MACHINE;
+                EnableCursor();
+                return;
+                }
+            }
         if (m_currentRoom == m_floorManager.GetExitRoom()) {
-    if (IsHatchHovered(ray)) {
-        PlayLevelUpSound();   // Звук перехода этажа
-        m_floorManager.NextFloor();
-        m_currentRoom = m_floorManager.GetStartRoom();
-        m_currentRoom->SetExplored(true);
-        m_camera.SetAngle(0.0f);
-        m_camera.SetPitch(0.0f);
-        m_camera.Update(m_currentRoom);
-        std::cout << "=== Entered floor " << m_floorManager.GetCurrentFloor() << " ===" << std::endl;
-        return;
-    }
-}
-        // 2. Проверка на дверь
+            if (IsHatchHovered(ray)) {
+                PlaySound(m_music);
+                m_floorManager.NextFloor();
+                m_currentRoom = m_floorManager.GetStartRoom();
+                m_currentRoom->SetExplored(true);
+                m_camera.SetAngle(0.0f);
+                m_camera.SetPitch(0.0f);
+                m_camera.Update(m_currentRoom);
+                return;
+                }
+            }
         Direction door = GetHoveredDoor();
         if (door != Direction::NONE) {
             Room* next = m_currentRoom->GetNeighbor(door);
             if (next) {
                 PlaySound(m_doorSound);
                 MoveToRoom(next);
-            }
-        } 
-        // 3. Сбор монеток
+                }
+            } 
         else {
             auto& coins = m_floorManager.GetCoins();
             for (auto& coin : coins) {
@@ -212,7 +132,6 @@ void Game::HandleInput() {
                         coin.Collect();
                         AddCoins(1);
                         PlaySound(m_coinSound);
-                        std::cout << "Coin collected! Total: " << m_totalCoins << std::endl;
                         break;
                     }
                 }
@@ -222,9 +141,6 @@ void Game::HandleInput() {
 }
 
 void Game::Update() {
-    if (m_musicLoaded && IsMusicStreamPlaying(m_music)) {
-        UpdateMusicStream(m_music);
-    }
     if (m_state == PLAYING) {
         m_camera.Update(m_currentRoom);
     }
@@ -261,15 +177,14 @@ void Game::Draw() {
             m_errorMessageTimer -= GetFrameTime();
             int tw = MeasureText(m_errorMessage.c_str(), 25);
             DrawText(m_errorMessage.c_str(), GetScreenWidth()/2 - tw/2, GetScreenHeight()/2 - 50, 25, RED);
-        }
+            }
 
         if (m_currentRoom->HasSlotMachine()) {
             const char* msg = "Press LEFT CLICK on the machine to play SLOT!";
             int tw = MeasureText(msg, 20);
             DrawText(msg, GetScreenWidth()/2 - tw/2, GetScreenHeight() - 50, 20, YELLOW);
+            }
         }
-    }
-    
     EndDrawing();
 }
 
@@ -308,14 +223,6 @@ void Game::AddCoins(int amount) {
     std::cout << "Coins updated: " << m_totalCoins << std::endl;
 }
 
-void Game::PlayLevelUpSound() {
-    if (m_musicLoaded) {
-        StopMusicStream(m_music);          // останавливаем текущее воспроизведение, если играет
-        SeekMusicStream(m_music, 0.0f);    // перематываем на начало
-        PlayMusicStream(m_music);          // запускаем заново
-    }
-}
-
 bool Game::IsHatchHovered(Ray ray) {
     float half = Constants::ROOM_SIZE / 2.0f;
     float offset = 1.2f;
@@ -326,8 +233,7 @@ bool Game::IsHatchHovered(Ray ray) {
         0.05f,
         roomPos.z + half - offset
     };
-    
-    // Bounding box люка
+
     BoundingBox hatchBox = {
         {hatchCenter.x - 0.75f, hatchCenter.y - 0.1f, hatchCenter.z - 0.75f},
         {hatchCenter.x + 0.75f, hatchCenter.y + 0.2f, hatchCenter.z + 0.75f}
@@ -335,4 +241,61 @@ bool Game::IsHatchHovered(Ray ray) {
     
     RayCollision coll = GetRayCollisionBox(ray, hatchBox);
     return coll.hit;
+}
+
+bool Game::IsHittingMachine(Ray ray){
+    const float machineWidth = 2.4f;
+    const float machineHeight = 1.9f;
+    const float machineDepth = 1.6f;
+    const float halfRoom = Constants::ROOM_SIZE / 2.0f;
+            
+    Vector3 roomPos = m_currentRoom->GetWorldPosition();
+    Vector3 machineCenter = {
+        roomPos.x,
+        machineHeight / 2.0f,
+        roomPos.z - halfRoom + machineDepth / 2.0f
+        };
+    BoundingBox slotBox = {
+        {machineCenter.x - machineWidth/2, machineCenter.y - machineHeight/2, machineCenter.z - machineDepth/2},
+        {machineCenter.x + machineWidth/2, machineCenter.y + machineHeight/2, machineCenter.z + machineDepth/2}
+        };
+    RayCollision coll = GetRayCollisionBox(ray, slotBox);
+    return coll.hit;
+}
+
+void Game::LoadSounds(){
+        m_music = LoadSound("../resources/menu_music.ogg");
+    if (m_music.stream.buffer != nullptr) {
+        m_musicLoaded = true;
+    } else {
+        m_musicLoaded = false;
+    }
+
+    m_coinSound = LoadSound("../resources/coin.ogg");
+    if (m_coinSound.stream.buffer != nullptr) {
+        m_coinSoundLoaded = true;
+    } else {
+        m_coinSoundLoaded = false;
+    }
+
+    m_winSound = LoadSound("../resources/win.ogg");
+    if (m_winSound.stream.buffer != nullptr) {
+        m_winSoundLoaded = true;
+    } else {
+        m_winSoundLoaded = false;
+    }
+    
+    m_loseSound = LoadSound("../resources/lose.ogg");
+    if (m_loseSound.stream.buffer != nullptr) {
+        m_loseSoundLoaded = true;
+    } else {
+        m_loseSoundLoaded = false;
+    }
+
+    m_doorSound = LoadSound("../resources/door.ogg");
+    if (m_doorSound.stream.buffer != nullptr) {
+        m_doorSoundLoaded = true;
+    } else {
+        m_doorSoundLoaded = false;
+    }
 }

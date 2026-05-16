@@ -17,7 +17,7 @@ public:
 
 private:
     enum GameState { MENU, PLAYING, SLOT_MACHINE };
-    void PlayLevelUpSound();
+    void LoadSounds();
     void HandleInput();
     void Update();
     void Draw();
@@ -25,6 +25,7 @@ private:
     Direction GetHoveredDoor();
     void StartGame();
     void AddCoins(int amount);
+    bool IsHittingMachine(Ray ray);
     bool IsHatchHovered(Ray ray);
 
     FloorManager m_floorManager;
@@ -37,7 +38,7 @@ private:
     
     GameState m_state;
     
-    Music m_music;
+    Sound m_music;
     bool m_musicLoaded;
     bool m_musicStarted;
     Sound m_doorSound;

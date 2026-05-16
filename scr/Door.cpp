@@ -1,12 +1,10 @@
 #include "Door.h"
 
-Door::Door(Vector3 position, Direction dir, bool isOpen)
-    : position(position), direction(dir), isOpen(isOpen),
+Door::Door(Vector3 position, Direction dir)
+    : position(position), direction(dir),
       doorColor{139, 69, 19, 255},
       frameColor{101, 67, 33, 255},
       handleColor(GOLD) {
-    // N/S: проём вдоль X — ширина по X, толщина по Z.
-    // E/W: проём вдоль Z — ширина по Z, толщина по X.
     constexpr float thickness = 0.2f;
     switch (dir) {
         case Direction::EAST:
@@ -20,8 +18,7 @@ Door::Door(Vector3 position, Direction dir, bool isOpen)
 }
 
 void Door::Draw() const {
-    Color col = isOpen ? DARKGRAY : doorColor;
-    DrawCube(position, size.x, size.y, size.z, col);
+    DrawCube(position, size.x, size.y, size.z, doorColor);
     DrawCubeWires(position, size.x + 0.01f, size.y + 0.01f, size.z + 0.01f, frameColor);
     
     Vector3 handlePos = position;
@@ -37,7 +34,6 @@ void Door::Draw() const {
 }
 
 void Door::DrawHighlight() const {
-    // Pad only in the horizontal plane; keep height = door height so the outline does not stick into the lintel.
     constexpr float padAlongOpening = 0.1f;
     constexpr float padThickness = 0.06f;
     switch (direction) {
@@ -88,8 +84,7 @@ Direction PickClosestDoorAlongRay(const Room* room, Ray ray) {
         if (!room->HasDoor(dir)) return;
         Door door(doorCenter, dir);
         RayCollision c = GetRayCollisionBox(ray, door.GetPickBoundingBox());
-        if (c.hit && c.distance >= kMinDist && c.distance < bestDist) {
-            bestDist = c.distance;
+        if (c.hit) {
             best = dir;
         }
     };

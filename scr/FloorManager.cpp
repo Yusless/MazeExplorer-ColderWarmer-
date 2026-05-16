@@ -19,7 +19,6 @@ void FloorManager::GenerateFirstFloor() {
     m_currentFloor = 1;
     m_currentMaze = std::make_unique<MazeGraph>(5,5);
     m_currentMaze->Generate();
-    // Обновляем размеры из реального лабиринта
     m_width = m_currentMaze->GetWidth();
     m_height = m_currentMaze->GetHeight();
     GenerateCoins();
@@ -32,7 +31,6 @@ void FloorManager::NextFloor() {
     m_height = m_minSize + std::rand() % (m_maxSize - m_minSize + 1);
     m_currentMaze = std::make_unique<MazeGraph>(m_width, m_height);
     m_currentMaze->Generate();
-    // Размеры уже правильные, но на всякий случай обновим
     m_width = m_currentMaze->GetWidth();
     m_height = m_currentMaze->GetHeight();
     GenerateCoins();
@@ -69,7 +67,6 @@ void FloorManager::PlaceSlotMachineRoom() {
     int w = m_currentMaze->GetWidth();
     int h = m_currentMaze->GetHeight();
 
-    // Сброс старых автоматов
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             Room* r = m_currentMaze->GetRoom(x, y);
@@ -81,7 +78,6 @@ void FloorManager::PlaceSlotMachineRoom() {
     }
 
     std::vector<Room*> candidates;
-    std::cout << "\n=== Diagnostic: all rooms ===\n";
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             Room* room = m_currentMaze->GetRoom(x, y);
@@ -92,23 +88,11 @@ void FloorManager::PlaceSlotMachineRoom() {
             Room* neighbor = room->GetNeighbor(Direction::NORTH);
             bool neighborHasWestDoor = neighbor ? neighbor->HasDoor(Direction::SOUTH) : false;
             bool suitable = (!isStartOrExit && !hasEastDoor && !neighborHasWestDoor);
-
-            std::cout << "Room (" << x << "," << y << "): "
-                      << "Start/Exit=" << (isStartOrExit ? "Y" : "N")
-                      << "  Doors: N=" << room->HasDoor(Direction::NORTH)
-                      << " S=" << room->HasDoor(Direction::SOUTH)
-                      << " E=" << hasEastDoor
-                      << " W=" << room->HasDoor(Direction::WEST)
-                      << " | Neighbor East: " << (neighbor ? "Y" : "N")
-                      << (neighbor ? (" (WestDoor=" + std::to_string(neighborHasWestDoor) + ")") : "")
-                      << " | Suitable: " << (suitable ? "YES" : "NO") << std::endl;
-
             if (suitable) candidates.push_back(room);
         }
     }
 
     if (candidates.empty()) {
-        std::cout << "\nNo free EAST wall for slot machine" << std::endl;
         return;
     }
 
@@ -117,7 +101,4 @@ void FloorManager::PlaceSlotMachineRoom() {
     Room* chosen = candidates[dist(rng)];
     chosen->SetSlotMachine(true);
     chosen->SetSlotMachineWall(Direction::EAST);
-
-    std::cout << "\nSlot machine placed in room (" << chosen->GetGridX() << "," << chosen->GetGridY()
-              << ") on EAST wall (chosen from " << candidates.size() << " suitable rooms)" << std::endl;
 }
