@@ -265,6 +265,7 @@ bool Game::IsHittingMachine(Ray ray){
 
 void Game::LoadSounds(){
         m_music = LoadSound("../resources/menu_music.ogg");
+        m_music = LoadSound("../../resources/menu_music.ogg");
     if (m_music.stream.buffer != nullptr) {
         m_musicLoaded = true;
     } else {
@@ -272,6 +273,7 @@ void Game::LoadSounds(){
     }
 
     m_coinSound = LoadSound("../resources/coin.ogg");
+    m_coinSound = LoadSound("../../resources/coin.ogg");
     if (m_coinSound.stream.buffer != nullptr) {
         m_coinSoundLoaded = true;
     } else {
@@ -279,6 +281,7 @@ void Game::LoadSounds(){
     }
 
     m_winSound = LoadSound("../resources/win.ogg");
+    m_winSound = LoadSound("../../resources/win.ogg");
     if (m_winSound.stream.buffer != nullptr) {
         m_winSoundLoaded = true;
     } else {
@@ -286,6 +289,7 @@ void Game::LoadSounds(){
     }
     
     m_loseSound = LoadSound("../resources/lose.ogg");
+    m_loseSound = LoadSound("../../resources/lose.ogg");
     if (m_loseSound.stream.buffer != nullptr) {
         m_loseSoundLoaded = true;
     } else {
@@ -293,6 +297,7 @@ void Game::LoadSounds(){
     }
 
     m_doorSound = LoadSound("../resources/door.ogg");
+    m_doorSound = LoadSound("../../resources/door.ogg");
     if (m_doorSound.stream.buffer != nullptr) {
         m_doorSoundLoaded = true;
     } else {
