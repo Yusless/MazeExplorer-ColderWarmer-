@@ -22,10 +22,23 @@ Game::Game(int minSize, int maxSize)
     } else {
         std::cout << "Audio device initialized successfully" << std::endl;
     }
-    m_music = LoadMusicStream("../../resources/menu_music.ogg");
-    m_music.looping = false;;
-
-    m_coinSound = LoadSound("../../resources/coin.ogg");
+    
+    // Загрузка музыки меню (без зацикливания)
+    m_music = LoadMusicStream("../resources/menu_music.ogg");
+    if (m_music.stream.buffer != nullptr) {
+        m_musicLoaded = true;
+        m_music.looping = false;
+    } else {
+        m_musicLoaded = false;
+    }
+    
+    // Загрузка звука монет
+    m_coinSound = LoadSound("../resources/coin.ogg");
+    if (m_coinSound.stream.buffer != nullptr) {
+        m_coinSoundLoaded = true;
+    } else {
+        m_coinSoundLoaded = false;
+    }
     
     m_slotMachine.SetAddCoinsCallback([this](int amount) { AddCoins(amount); });
 }
